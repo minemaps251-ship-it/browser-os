@@ -1,0 +1,11 @@
+.fallback {
+  height: 100svh;
+  min-height: 380px;
+  padding: var(--space);
+  background: var(--desktop-background);
+}
+.fallback h1 {
+  font-size: 20px;
+  margin: 0;
+  letter-spacing: -0.5px;
+}

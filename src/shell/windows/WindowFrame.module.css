@@ -1,0 +1,73 @@
+.frame {
+  position: absolute;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--window-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-window);
+  overflow: hidden;
+}
+.frame.focused {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-window-focused);
+}
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.brand {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+}
+.titlebar h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 22px;
+}
+.close:hover {
+  background: var(--danger-surface);
+  color: var(--danger-text);
+}
+.content {
+  overflow: auto;
+  flex: 1;
+  padding: 25px 28px;
+}
+@media (max-width: 600px) {
+  .frame {
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .content {
+    padding: 20px;
+  }
+  .close {
+    width: 44px;
+    height: 44px;
+  }
+}
+@media (forced-colors: active) {
+  .frame.focused {
+    border: 2px solid Highlight;
+  }
+}

@@ -1,3 +1,4 @@
+import styles from './Taskbar.module.css'
 import { useEffect, useRef } from 'react'
 import { useStore } from 'zustand'
 import { useRuntime } from '../../app/runtimeContext'
@@ -15,8 +16,8 @@ export function Taskbar() {
     previousFocus.current = focusedId
   }, [focusedId])
   return (
-    <footer className="taskbar">
-      <span className="taskbar-label">WORKSPACE</span>
+    <footer className={styles.taskbar}>
+      <span className={styles.label}>WORKSPACE</span>
       <nav aria-label="Running applications">
         {Object.values(windows).map(
           (window) =>
@@ -34,10 +35,10 @@ export function Taskbar() {
             ),
         )}
         {Object.keys(windows).length === 0 && (
-          <span className="taskbar-empty">No applications running</span>
+          <span className={styles.empty}>No applications running</span>
         )}
       </nav>
-      <span className="session-label">LOCAL SESSION</span>
+      <span className={styles.session}>LOCAL SESSION</span>
     </footer>
   )
 }

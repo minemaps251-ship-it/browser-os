@@ -1,3 +1,4 @@
+import styles from './DesktopShell.module.css'
 import { useState } from 'react'
 import { useRuntime } from '../../app/runtimeContext'
 import type { AppId } from '../../core/shared/ids'
@@ -18,10 +19,10 @@ export function DesktopShell() {
     else focusWindowElement(result.windowId)
   }
   return (
-    <main className="desktop">
-      <header className="desktop-header">
-        <div className="identity">
-          <span className="brand-mark" aria-hidden="true">
+    <main className={styles.desktop}>
+      <header className={styles.header}>
+        <div className={styles.identity}>
+          <span className={styles.brand} aria-hidden="true">
             B
           </span>
           <div>
@@ -45,17 +46,17 @@ export function DesktopShell() {
         </nav>
       </header>
       {pending && (
-        <p className="desktop-status" role="status">
+        <p className={styles.status} role="status">
           Opening application…
         </p>
       )}
       {error && (
-        <p className="desktop-status" role="alert">
+        <p className={styles.status} role="alert">
           {error}
         </p>
       )}
-      <div className="desktop-workspace">
-        <div className="desktop-hint" aria-hidden="true">
+      <div className={styles.workspace}>
+        <div className={styles.hint} aria-hidden="true">
           <span>YOUR SPACE TO EXPLORE</span>
           <strong>Start with a window.</strong>
           <p>Open About BrowserOS to discover the workspace.</p>

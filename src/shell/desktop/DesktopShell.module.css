@@ -1,0 +1,93 @@
+.desktop {
+  height: 100svh;
+  min-height: 380px;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space);
+  background: var(--desktop-background);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 8px 20px;
+}
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 800;
+}
+.identity h1 {
+  font-size: 20px;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+.identity p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.header button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 11px 15px;
+  font-size: 13px;
+}
+.header button span {
+  color: var(--accent);
+  font-weight: 800;
+  margin-right: 5px;
+}
+.workspace {
+  flex: 1;
+  position: relative;
+  min-height: 240px;
+}
+.hint {
+  padding: 11vh 5vw;
+  color: var(--muted);
+}
+.hint span {
+  font-size: 10px;
+  letter-spacing: 1.7px;
+  font-weight: 700;
+}
+.hint strong {
+  display: block;
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 500;
+  color: var(--text);
+  margin: 16px 0;
+  letter-spacing: -1.8px;
+}
+.hint p {
+  font-size: 13px;
+}
+.status {
+  margin: 0 8px 12px;
+  font-size: 13px;
+}
+@media (max-width: 600px) {
+  .desktop {
+    --space: 10px;
+  }
+  .header {
+    flex-wrap: wrap;
+  }
+  .header button {
+    min-height: 44px;
+  }
+}

@@ -1,0 +1,37 @@
+:root {
+  --document-background: #e8eef0;
+  --surface: #ffffff;
+  --desktop-background:
+    radial-gradient(ellipse at 80% 30%, #d4e6df, transparent 65%), #e8eef0;
+  --accent-contrast: white;
+  --window-border: #b9c9ce;
+  --taskbar-background: #ffffffc9;
+  --shadow-window: 0 16px 50px #26434b20;
+  --shadow-window-focused: 0 18px 60px #26434b30;
+  --danger-surface: #f5dfdf;
+  --danger-text: #992b2b;
+  --text: #20333c;
+  --muted: #596b74;
+  --line: #d6e0e4;
+  --accent: #166b64;
+  --focus: #075cbd;
+  --space: 16px;
+  --radius: 14px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #172a30;
+    --desktop-background:
+      radial-gradient(ellipse at 80% 30%, #243e38, transparent 65%), #13242c;
+    --accent-contrast: #14272b;
+    --window-border: var(--line);
+    --taskbar-background: #172a30de;
+    --text: #e4eef0;
+    --muted: #b2c4ca;
+    --line: #365057;
+    --accent: #9cd3bd;
+    --focus: #8ec4ff;
+    color-scheme: dark;
+  }
+}

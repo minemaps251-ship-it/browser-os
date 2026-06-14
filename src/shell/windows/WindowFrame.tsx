@@ -1,3 +1,4 @@
+import styles from './WindowFrame.module.css'
 import { useEffect, useRef } from 'react'
 import { useStore } from 'zustand'
 import type { WindowId } from '../../core/shared/ids'
@@ -28,7 +29,7 @@ export function WindowFrame({ id }: { id: WindowId }) {
       ref={frame}
       tabIndex={-1}
       aria-label={`${window.title} window`}
-      className={`window-frame${focused ? ' is-focused' : ''}`}
+      className={`${styles.frame}${focused ? ` ${styles.focused}` : ''}`}
       style={{
         left: window.bounds.x,
         top: window.bounds.y,
@@ -39,20 +40,20 @@ export function WindowFrame({ id }: { id: WindowId }) {
       onPointerDown={() => runtime.focusWindow(id)}
       onFocus={() => runtime.focusWindow(id)}
     >
-      <header className="window-titlebar">
-        <span className="window-brand" aria-hidden="true">
+      <header className={styles.titlebar}>
+        <span className={styles.brand} aria-hidden="true">
           B
         </span>
         <h2>{window.title}</h2>
         <button
-          className="window-close"
+          className={styles.close}
           aria-label={`Close ${window.title}`}
           onClick={() => runtime.requestCloseWindow(id)}
         >
           ×
         </button>
       </header>
-      <div className="window-content">
+      <div className={styles.content}>
         <AppBoundary onCrash={() => runtime.reportCrash(id)}>
           {content ? (
             content

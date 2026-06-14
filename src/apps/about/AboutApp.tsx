@@ -1,13 +1,14 @@
+import styles from './AboutApp.module.css'
 export default function AboutApp() {
   return (
-    <div className="about-content">
-      <span className="eyebrow">WELCOME TO YOUR WORKSPACE</span>
+    <div className={styles.content}>
+      <span className={styles.eyebrow}>WELCOME TO YOUR WORKSPACE</span>
       <h2>A desktop, built for the browser.</h2>
       <p>
         BrowserOS explores how applications, windows, and shared services work
         together in a browser.
       </p>
-      <div className="about-facts">
+      <div className={styles.facts}>
         <div>
           <span>01</span>
           <strong>Applications</strong>
@@ -24,7 +25,7 @@ export default function AboutApp() {
           <p>Open, focus, and close cleanly.</p>
         </div>
       </div>
-      <p className="about-note">
+      <p className={styles.note}>
         This is the first working slice. Files and persistent storage will
         follow.
       </p>

@@ -1,3 +1,4 @@
+import styles from './BrowserOS.module.css'
 import { AppBoundary } from './AppBoundary'
 import { RuntimeProvider } from './RuntimeProvider'
 import type { BrowserRuntime } from './createRuntime'
@@ -8,7 +9,7 @@ export function BrowserOS({ runtime }: { runtime: BrowserRuntime }) {
     <AppBoundary
       onCrash={() => runtime.dispose()}
       fallback={
-        <main className="desktop" role="alert">
+        <main className={styles.fallback} role="alert">
           <h1>BrowserOS could not continue</h1>
           <p>Reload the workspace to try again.</p>
           <button onClick={() => window.location.reload()}>
