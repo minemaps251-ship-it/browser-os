@@ -1,0 +1,94 @@
+import { describe, expect, it, vi } from 'vitest'
+import { createTestRuntime, deferred, firstApp } from '../../test/fixtures'
+import type { AppId, WindowId } from '../shared/ids'
+
+describe('application lifecycle', () => {
+  it('launches separate instances, focuses, closes, and releases resources', async () => {
+    const cleanup = vi.fn()
+    const runtime = createTestRuntime(async (_app, scope) => {
+      scope.registerCleanup(cleanup)
+    })
+    const first = await runtime.launch(firstApp.id)
+    const second = await runtime.launch(firstApp.id)
+    expect(first.ok && second.ok).toBe(true)
+    if (!first.ok || !second.ok) throw new Error('Fixture launch failed')
+    expect(first.processId).not.toBe(second.processId)
+    expect(first.windowId).not.toBe(second.windowId)
+    expect(runtime.windows.getState().byId[first.windowId]?.processId).toBe(
+      first.processId,
+    )
+    runtime.focusWindow(first.windowId)
+    runtime.requestCloseWindow(first.windowId)
+    expect(runtime.windows.getState().focusedId).toBe(second.windowId)
+    expect(runtime.listProcesses()).toHaveLength(1)
+    expect(cleanup).toHaveBeenCalledOnce()
+    runtime.requestCloseWindow(first.windowId)
+    runtime.dispose()
+    expect(runtime.listProcesses()).toEqual([])
+    expect(cleanup).toHaveBeenCalledTimes(2)
+  })
+  it('deduplicates concurrent singleton launches and focuses the existing window', async () => {
+    const gate = deferred<void>()
+    const load = vi.fn(() => gate.promise)
+    const runtime = createTestRuntime(load, [
+      { ...firstApp, instancePolicy: 'singleton' },
+    ])
+    const a = runtime.launch(firstApp.id)
+    const b = runtime.launch(firstApp.id)
+    expect(a).toBe(b)
+    gate.resolve()
+    expect(await a).toEqual(await b)
+    expect(await runtime.launch(firstApp.id)).toEqual(await a)
+    expect(load).toHaveBeenCalledOnce()
+    expect(runtime.listProcesses()).toHaveLength(1)
+    runtime.dispose()
+  })
+  it('rolls back failed launches and permits a retry', async () => {
+    const cleanup = vi.fn()
+    const runtime = createTestRuntime(async (_app, scope) => {
+      scope.registerCleanup(cleanup)
+      throw new Error('load failure')
+    })
+    expect((await runtime.launch(firstApp.id)).ok).toBe(false)
+    expect(runtime.listProcesses()).toEqual([])
+    expect(runtime.windows.getState().order).toEqual([])
+    expect(cleanup).toHaveBeenCalledOnce()
+    expect((await runtime.launch(firstApp.id)).ok).toBe(false)
+    expect(cleanup).toHaveBeenCalledTimes(2)
+    runtime.dispose()
+  })
+  it('never resurrects a late launch after runtime disposal', async () => {
+    const gate = deferred<void>()
+    const runtime = createTestRuntime(() => gate.promise)
+    const result = runtime.launch(firstApp.id)
+    runtime.dispose()
+    gate.resolve()
+    expect((await result).ok).toBe(false)
+    expect(runtime.windows.getState().order).toEqual([])
+    expect(runtime.listProcesses()).toEqual([])
+  })
+  it('rejects unknown apps and disposed runtime launches without side effects', async () => {
+    const runtime = createTestRuntime()
+    expect((await runtime.launch('unknown' as AppId)).ok).toBe(false)
+    runtime.requestCloseWindow('unknown' as WindowId)
+    runtime.dispose()
+    expect((await runtime.launch(firstApp.id)).ok).toBe(false)
+    expect(runtime.listProcesses()).toEqual([])
+  })
+  it('marks renderer crashes and disposes app resources while retaining closeable chrome', async () => {
+    const cleanup = vi.fn()
+    const runtime = createTestRuntime(async (_app, scope) => {
+      scope.registerCleanup(cleanup)
+    })
+    const result = await runtime.launch(firstApp.id)
+    if (!result.ok) throw new Error('Fixture launch failed')
+    runtime.reportCrash(result.windowId)
+    expect(runtime.listProcesses()[0].status).toBe('crashed')
+    expect(runtime.windows.getState().byId[result.windowId]).toBeDefined()
+    expect(cleanup).toHaveBeenCalledOnce()
+    runtime.requestCloseWindow(result.windowId)
+    expect(runtime.listProcesses()).toEqual([])
+    expect(cleanup).toHaveBeenCalledOnce()
+    runtime.dispose()
+  })
+})

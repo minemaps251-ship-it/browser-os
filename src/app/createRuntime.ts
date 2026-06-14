@@ -1,0 +1,39 @@
+import { createElement, type ReactElement } from 'react'
+import { createRegistry } from '../core/applications/registry'
+import type { AppId, ProcessId, WindowId } from '../core/shared/ids'
+import { createRuntime } from '../core/runtime/service'
+import { builtInApps, type AppRegistration } from './builtInApps'
+
+export function createBrowserRuntime(
+  registrations: readonly AppRegistration[] = builtInApps,
+) {
+  const registry = createRegistry(registrations.map((entry) => entry.manifest))
+  const entries = new Map(
+    registrations.map((entry) => [entry.manifest.id, entry]),
+  )
+  const contents = new Map<AppId, ReactElement>()
+  const runtime = createRuntime({
+    registry,
+    ids: {
+      process: () => crypto.randomUUID() as ProcessId,
+      window: () => crypto.randomUUID() as WindowId,
+    },
+    now: Date.now,
+    getUsableArea: () => ({
+      width: Math.max(1, window.innerWidth - 32),
+      height: Math.max(1, window.innerHeight - 180),
+    }),
+    load: async (appId, scope) => {
+      const entry = entries.get(appId)
+      if (!entry) throw new Error('Missing application renderer')
+      const module = await entry.load()
+      if (!scope.signal.aborted)
+        contents.set(appId, createElement(module.default))
+    },
+    onCleanupError: (error) => {
+      console.error('Application cleanup failed', error)
+    },
+  })
+  return { ...runtime, getContent: (appId: AppId) => contents.get(appId) }
+}
+export type BrowserRuntime = ReturnType<typeof createBrowserRuntime>
