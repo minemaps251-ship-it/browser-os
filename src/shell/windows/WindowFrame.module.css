@@ -83,3 +83,80 @@
 .dragging {
   cursor: grabbing;
 }
+
+.resizeHandle {
+  position: absolute;
+  z-index: 2;
+  touch-action: none;
+  user-select: none;
+  --edge-hit: 10px;
+  --corner-hit: 20px;
+  --edge-offset: -5px;
+  --corner-offset: -10px;
+}
+.resizeHandle[data-resize-edge='n'],
+.resizeHandle[data-resize-edge='s'] {
+  height: var(--edge-hit);
+  left: var(--corner-hit);
+  right: var(--corner-hit);
+  cursor: ns-resize;
+}
+.resizeHandle[data-resize-edge='e'],
+.resizeHandle[data-resize-edge='w'] {
+  width: var(--edge-hit);
+  top: var(--corner-hit);
+  bottom: var(--corner-hit);
+  cursor: ew-resize;
+}
+.resizeHandle[data-resize-edge='n'] {
+  top: var(--edge-offset);
+}
+.resizeHandle[data-resize-edge='s'] {
+  bottom: var(--edge-offset);
+}
+.resizeHandle[data-resize-edge='e'] {
+  right: var(--edge-offset);
+}
+.resizeHandle[data-resize-edge='w'] {
+  left: var(--edge-offset);
+}
+.resizeHandle[data-resize-edge='ne'],
+.resizeHandle[data-resize-edge='nw'],
+.resizeHandle[data-resize-edge='se'],
+.resizeHandle[data-resize-edge='sw'] {
+  width: var(--corner-hit);
+  height: var(--corner-hit);
+}
+.resizeHandle[data-resize-edge='ne'] {
+  top: var(--corner-offset);
+  right: var(--corner-offset);
+  cursor: nesw-resize;
+}
+.resizeHandle[data-resize-edge='nw'] {
+  top: var(--corner-offset);
+  left: var(--corner-offset);
+  cursor: nwse-resize;
+}
+.resizeHandle[data-resize-edge='se'] {
+  bottom: var(--corner-offset);
+  right: var(--corner-offset);
+  cursor: nwse-resize;
+}
+.resizeHandle[data-resize-edge='sw'] {
+  bottom: var(--corner-offset);
+  left: var(--corner-offset);
+  cursor: nesw-resize;
+}
+@media (pointer: coarse) {
+  .resizeHandle {
+    --edge-hit: 24px;
+    --corner-hit: 24px;
+    --edge-offset: -20px;
+    --corner-offset: -16px;
+  }
+}
+@media (max-width: 600px) {
+  .resizeHandle {
+    display: none;
+  }
+}

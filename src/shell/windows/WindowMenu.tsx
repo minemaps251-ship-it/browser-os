@@ -5,18 +5,22 @@ export function WindowMenu({
   title,
   buttonRef,
   onMove,
+  onResize,
 }: {
   title: string
   buttonRef: RefObject<HTMLButtonElement | null>
   onMove: () => void
+  onResize: () => void
 }) {
   const menuId = useId()
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
-  const item = useRef<HTMLButtonElement>(null)
+  const initialItem = useRef(0)
   useEffect(() => {
     if (!open) return
-    item.current?.focus()
+    root.current
+      ?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+      [initialItem.current]?.focus()
     function outside(event: PointerEvent) {
       if (event.target instanceof Node && !root.current?.contains(event.target))
         setOpen(false)
@@ -39,10 +43,14 @@ export function WindowMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          initialItem.current = 0
+          setOpen(!open)
+        }}
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault()
+            initialItem.current = event.key === 'ArrowUp' ? 1 : 0
             setOpen(true)
           }
         }}
@@ -64,19 +72,46 @@ export function WindowMenu({
             }
             if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
               event.preventDefault()
-              item.current?.focus()
+              const items = Array.from(
+                event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                  '[role="menuitem"]',
+                ),
+              )
+              const index = items.findIndex(
+                (item) => item === document.activeElement,
+              )
+              const next =
+                event.key === 'Home'
+                  ? 0
+                  : event.key === 'End'
+                    ? items.length - 1
+                    : (index +
+                        (event.key === 'ArrowUp' ? -1 : 1) +
+                        items.length) %
+                      items.length
+              items[next]?.focus()
             }
           }}
         >
           <button
-            ref={item}
             role="menuitem"
+            tabIndex={-1}
             onClick={() => {
               setOpen(false)
               onMove()
             }}
           >
             Move window
+          </button>
+          <button
+            role="menuitem"
+            tabIndex={-1}
+            onClick={() => {
+              setOpen(false)
+              onResize()
+            }}
+          >
+            Resize window
           </button>
         </div>
       )}

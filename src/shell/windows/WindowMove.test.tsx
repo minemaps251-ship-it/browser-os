@@ -83,6 +83,14 @@ describe('window move integration', () => {
             { width: 1000, height: 700 },
           ),
         )
+      for (let i = 0; i < 50; i++)
+        act(() =>
+          runtime.resizeWindow(
+            id,
+            { x: 99, y: 60, width: 350 + i, height: 250 + i },
+            { width: 1000, height: 700 },
+          ),
+        )
       expect([firstRenders, secondRenders, taskbarCommits]).toEqual(initial)
       expect(runtime.windows.getState().byId[id]?.bounds.x).toBe(99)
     } finally {
@@ -133,6 +141,73 @@ describe('window move integration', () => {
       expect(writes).toBe(1)
       expect(frame.style.top).toBe(`${start.y}px`)
       expect(actions).toHaveFocus()
+      unsubscribe()
+    } finally {
+      view.unmount()
+      runtime.dispose()
+      restore()
+    }
+  })
+  it('previews keyboard resize without writes, enforces registry minimum and preserves app state', async () => {
+    const restore = mockDialogs()
+    const runtime = createBrowserRuntime()
+    const view = render(
+      <StrictMode>
+        <BrowserOS runtime={runtime} />
+      </StrictMode>,
+    )
+    const user = userEvent.setup()
+    try {
+      await user.click(
+        screen.getByRole('button', { name: 'Open About BrowserOS' }),
+      )
+      const frame = await screen.findByRole('region', {
+        name: 'About BrowserOS window',
+      })
+      const id = runtime.windows.getState().ids[0]
+      const start = runtime.windows.getState().byId[id]!.bounds
+      let writes = 0
+      const unsubscribe = runtime.windows.subscribe(() => writes++)
+      const actions = screen.getByRole('button', {
+        name: 'Window actions for About BrowserOS',
+      })
+      await user.click(actions)
+      await user.click(screen.getByRole('menuitem', { name: 'Resize window' }))
+      let dialog = await screen.findByRole('dialog', {
+        name: 'Resize About BrowserOS',
+      })
+      await user.click(within(dialog).getByRole('button', { name: 'Wider' }))
+      expect(frame.style.width).toBe(`${start.width + 10}px`)
+      expect(runtime.windows.getState().byId[id]!.bounds).toBe(start)
+      expect(writes).toBe(0)
+      await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+      expect(frame.style.width).toBe(`${start.width}px`)
+      expect(writes).toBe(0)
+      expect(actions).toHaveFocus()
+      await user.click(actions)
+      await user.click(screen.getByRole('menuitem', { name: 'Resize window' }))
+      dialog = screen.getByRole('dialog')
+      await user.click(within(dialog).getByRole('button', { name: 'Taller' }))
+      await user.click(within(dialog).getByRole('button', { name: 'Apply' }))
+      expect(writes).toBe(1)
+      expect(runtime.windows.getState().byId[id]!.bounds.height).toBe(
+        start.height + 10,
+      )
+      act(() =>
+        runtime.resizeWindow(
+          id,
+          { ...start, width: 1, height: 1 },
+          { width: 1000, height: 700 },
+        ),
+      )
+      expect(runtime.windows.getState().byId[id]!.bounds).toEqual({
+        ...start,
+        width: 280,
+        height: 240,
+      })
+      expect(
+        within(frame).getByText('A desktop, built for the browser.'),
+      ).toBeInTheDocument()
       unsubscribe()
     } finally {
       view.unmount()

@@ -1,4 +1,4 @@
-import { constrainPosition, type Position } from './geometry'
+import { constrainPosition, fitBounds, type Position } from './geometry'
 import { createStore } from 'zustand/vanilla'
 import type { AppId, ProcessId, WindowId } from '../shared/ids'
 import type { Size } from '../shared/geometry'
@@ -116,6 +116,25 @@ export function moveWindow(
     },
   }
 }
+export function resizeWindow(
+  state: WindowSnapshot,
+  id: WindowId,
+  proposed: Bounds,
+  minimum: Size,
+  area: Size,
+): WindowSnapshot {
+  const window = state.byId[id]
+  if (!window) return state
+  const bounds = fitBounds(proposed, minimum, area)
+  if (
+    bounds.x === window.bounds.x &&
+    bounds.y === window.bounds.y &&
+    bounds.width === window.bounds.width &&
+    bounds.height === window.bounds.height
+  )
+    return state
+  return { ...state, byId: { ...state.byId, [id]: { ...window, bounds } } }
+}
 export function createWindowService() {
   const store = createStore<WindowSnapshot>(() => emptyWindows())
   return {
@@ -131,6 +150,11 @@ export function createWindowService() {
       store.setState((state) => focusWindow(state, id), true),
     move: (id: WindowId, position: Position, area: Size) =>
       store.setState((state) => moveWindow(state, id, position, area), true),
+    resize: (id: WindowId, bounds: Bounds, minimum: Size, area: Size) =>
+      store.setState(
+        (state) => resizeWindow(state, id, bounds, minimum, area),
+        true,
+      ),
     remove: (id: WindowId) =>
       store.setState((state) => removeWindow(state, id), true),
   }

@@ -3,7 +3,11 @@ import type { ApplicationRegistry } from '../applications/registry'
 import type { Size } from '../shared/geometry'
 import { createProcessScope, type ProcessScope } from '../processes/scope'
 import type { AppId, IdFactory, ProcessId, WindowId } from '../shared/ids'
-import { createWindowService, initialBounds } from '../windows/service'
+import {
+  createWindowService,
+  initialBounds,
+  type Bounds,
+} from '../windows/service'
 
 export interface Process {
   readonly id: ProcessId
@@ -124,6 +128,12 @@ export function createRuntime(deps: Dependencies) {
     },
     moveWindow: (id: WindowId, position: Position, area: Size) => {
       if (!disposed) windows.move(id, position, area)
+    },
+    resizeWindow: (id: WindowId, bounds: Bounds, area: Size) => {
+      if (disposed) return
+      const window = windows.read.getState().byId[id]
+      const manifest = window && deps.registry.get(window.appId)
+      if (manifest) windows.resize(id, bounds, manifest.window.minSize, area)
     },
     requestCloseWindow,
     listProcesses: () => [...processes.values()],

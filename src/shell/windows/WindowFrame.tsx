@@ -1,6 +1,7 @@
 import { Dialog } from '../../ui/Dialog'
 import { WindowMenu } from './WindowMenu'
-import { useWindowMove } from './useWindowMove'
+import { useWindowInteraction } from './useWindowInteraction'
+import { resizeEdges } from '../../core/windows/geometry'
 import styles from './WindowFrame.module.css'
 import { useEffect, useRef } from 'react'
 import { useStore } from 'zustand'
@@ -16,7 +17,7 @@ export function WindowFrame({ id }: { id: WindowId }) {
   const zIndex = useStore(runtime.windows, (state) => state.order.indexOf(id))
   const frame = useRef<HTMLElement>(null)
   const actions = useRef<HTMLButtonElement>(null)
-  const move = useWindowMove(id, frame)
+  const interaction = useWindowInteraction(id, frame)
   useEffect(() => {
     if (
       focused &&
@@ -28,6 +29,7 @@ export function WindowFrame({ id }: { id: WindowId }) {
   }, [focused, frame])
   if (!window) return null
   const content = runtime.getContent(window.appId)
+  const action = interaction.kind === 'resize' ? 'Resize' : 'Move'
   return (
     <section
       id={windowElementId(id)}
@@ -46,12 +48,12 @@ export function WindowFrame({ id }: { id: WindowId }) {
       onFocus={() => runtime.focusWindow(id)}
     >
       <header
-        className={`${styles.titlebar}${move.mode === 'pointer' ? ` ${styles.dragging}` : ''}`}
-        onPointerDown={move.pointerDown}
-        onPointerMove={move.pointerMove}
-        onPointerUp={move.pointerUp}
-        onPointerCancel={move.pointerCancel}
-        onLostPointerCapture={move.pointerCancel}
+        className={`${styles.titlebar}${interaction.mode === 'pointer' && interaction.kind === 'move' ? ` ${styles.dragging}` : ''}`}
+        onPointerDown={(event) => interaction.pointerDown(event)}
+        onPointerMove={interaction.pointerMove}
+        onPointerUp={interaction.pointerUp}
+        onPointerCancel={interaction.pointerCancel}
+        onLostPointerCapture={interaction.pointerCancel}
       >
         <span className={styles.brand} aria-hidden="true">
           B
@@ -60,7 +62,8 @@ export function WindowFrame({ id }: { id: WindowId }) {
         <WindowMenu
           title={window.title}
           buttonRef={actions}
-          onMove={move.startKeyboard}
+          onMove={() => interaction.startKeyboard('move')}
+          onResize={() => interaction.startKeyboard('resize')}
         />
         <button
           className={styles.close}
@@ -70,12 +73,12 @@ export function WindowFrame({ id }: { id: WindowId }) {
           ×
         </button>
       </header>
-      {move.mode === 'keyboard' && (
+      {interaction.mode === 'keyboard' && (
         <Dialog
-          label={`Move ${window.title}`}
+          label={`${action} ${window.title}`}
           returnFocus={actions}
-          descriptionId={`${windowElementId(id)}-move-help`}
-          onCancel={() => move.finish(false)}
+          descriptionId={`${windowElementId(id)}-interaction-help`}
+          onCancel={() => interaction.finish(false)}
           onKeyDown={(event) => {
             const step = event.shiftKey ? 40 : 10
             const delta: Record<string, [number, number]> = {
@@ -86,34 +89,66 @@ export function WindowFrame({ id }: { id: WindowId }) {
             }
             if (delta[event.key]) {
               event.preventDefault()
-              move.moveBy(...delta[event.key])
+              interaction.adjustBy(...delta[event.key])
             }
             if (event.key === 'Enter' && event.target === event.currentTarget) {
               event.preventDefault()
-              move.finish(true)
+              interaction.finish(true)
             }
           }}
         >
-          <h2>Move {window.title}</h2>
-          <p id={`${windowElementId(id)}-move-help`}>
-            Use arrow keys to move, Shift for larger steps. Enter on Apply
-            saves; Cancel or Escape restores the position.
+          <h2>
+            {action} {window.title}
+          </h2>
+          <p id={`${windowElementId(id)}-interaction-help`}>
+            {interaction.kind === 'resize'
+              ? 'Arrow keys resize the right and bottom edges; left/up shrink and right/down grow.'
+              : 'Use arrow keys to move.'}{' '}
+            Shift uses larger steps. Enter on Apply saves; Cancel or Escape
+            restores the original bounds.
           </p>
           <p role="status">
-            Position: {move.position?.x}, {move.position?.y}
+            Position: {interaction.previewBounds?.x},{' '}
+            {interaction.previewBounds?.y}. Size:{' '}
+            {interaction.previewBounds?.width} ×{' '}
+            {interaction.previewBounds?.height}.
           </p>
-          <div aria-label="Move directions">
-            <button onClick={() => move.moveBy(-10, 0)}>Left</button>
-            <button onClick={() => move.moveBy(0, -10)}>Up</button>
-            <button onClick={() => move.moveBy(0, 10)}>Down</button>
-            <button onClick={() => move.moveBy(10, 0)}>Right</button>
+          <div aria-label={`${action} directions`}>
+            <button onClick={() => interaction.adjustBy(-10, 0)}>
+              {interaction.kind === 'resize' ? 'Narrower' : 'Left'}
+            </button>
+            <button onClick={() => interaction.adjustBy(0, -10)}>
+              {interaction.kind === 'resize' ? 'Shorter' : 'Up'}
+            </button>
+            <button onClick={() => interaction.adjustBy(0, 10)}>
+              {interaction.kind === 'resize' ? 'Taller' : 'Down'}
+            </button>
+            <button onClick={() => interaction.adjustBy(10, 0)}>
+              {interaction.kind === 'resize' ? 'Wider' : 'Right'}
+            </button>
           </div>
-          <button data-dialog-initial-focus onClick={() => move.finish(true)}>
+          <button
+            data-dialog-initial-focus
+            onClick={() => interaction.finish(true)}
+          >
             Apply
           </button>
-          <button onClick={() => move.finish(false)}>Cancel</button>
+          <button onClick={() => interaction.finish(false)}>Cancel</button>
         </Dialog>
       )}
+      {resizeEdges.map((edge) => (
+        <div
+          key={edge}
+          aria-hidden="true"
+          data-resize-edge={edge}
+          className={styles.resizeHandle}
+          onPointerDown={(event) => interaction.pointerDown(event, edge)}
+          onPointerMove={interaction.pointerMove}
+          onPointerUp={interaction.pointerUp}
+          onPointerCancel={interaction.pointerCancel}
+          onLostPointerCapture={interaction.pointerCancel}
+        />
+      ))}
       <div className={styles.content}>
         <AppBoundary onCrash={() => runtime.reportCrash(id)}>
           {content ? (
