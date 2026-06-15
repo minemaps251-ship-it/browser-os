@@ -9,7 +9,7 @@
   border: 1px solid var(--window-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-window);
-  overflow: hidden;
+  overflow: visible;
 }
 .frame.focused {
   border-color: var(--accent);
@@ -22,6 +22,9 @@
   padding: 10px 12px;
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 .brand {
   color: var(--accent);
@@ -49,10 +52,15 @@
 }
 .content {
   overflow: auto;
+  border-radius: 0 0 var(--radius) var(--radius);
   flex: 1;
   padding: 25px 28px;
 }
 @media (max-width: 600px) {
+  .titlebar {
+    cursor: default;
+    touch-action: auto;
+  }
   .frame {
     inset: 0 !important;
     width: 100% !important;
@@ -70,4 +78,8 @@
   .frame.focused {
     border: 2px solid Highlight;
   }
+}
+
+.dragging {
+  cursor: grabbing;
 }

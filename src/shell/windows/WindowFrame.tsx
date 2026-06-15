@@ -1,3 +1,6 @@
+import { Dialog } from '../../ui/Dialog'
+import { WindowMenu } from './WindowMenu'
+import { useWindowMove } from './useWindowMove'
 import styles from './WindowFrame.module.css'
 import { useEffect, useRef } from 'react'
 import { useStore } from 'zustand'
@@ -12,6 +15,8 @@ export function WindowFrame({ id }: { id: WindowId }) {
   const focused = useStore(runtime.windows, (state) => state.focusedId === id)
   const zIndex = useStore(runtime.windows, (state) => state.order.indexOf(id))
   const frame = useRef<HTMLElement>(null)
+  const actions = useRef<HTMLButtonElement>(null)
+  const move = useWindowMove(id, frame)
   useEffect(() => {
     if (
       focused &&
@@ -20,7 +25,7 @@ export function WindowFrame({ id }: { id: WindowId }) {
     ) {
       frame.current.focus()
     }
-  }, [focused])
+  }, [focused, frame])
   if (!window) return null
   const content = runtime.getContent(window.appId)
   return (
@@ -40,11 +45,23 @@ export function WindowFrame({ id }: { id: WindowId }) {
       onPointerDown={() => runtime.focusWindow(id)}
       onFocus={() => runtime.focusWindow(id)}
     >
-      <header className={styles.titlebar}>
+      <header
+        className={`${styles.titlebar}${move.mode === 'pointer' ? ` ${styles.dragging}` : ''}`}
+        onPointerDown={move.pointerDown}
+        onPointerMove={move.pointerMove}
+        onPointerUp={move.pointerUp}
+        onPointerCancel={move.pointerCancel}
+        onLostPointerCapture={move.pointerCancel}
+      >
         <span className={styles.brand} aria-hidden="true">
           B
         </span>
         <h2>{window.title}</h2>
+        <WindowMenu
+          title={window.title}
+          buttonRef={actions}
+          onMove={move.startKeyboard}
+        />
         <button
           className={styles.close}
           aria-label={`Close ${window.title}`}
@@ -53,6 +70,50 @@ export function WindowFrame({ id }: { id: WindowId }) {
           ×
         </button>
       </header>
+      {move.mode === 'keyboard' && (
+        <Dialog
+          label={`Move ${window.title}`}
+          returnFocus={actions}
+          descriptionId={`${windowElementId(id)}-move-help`}
+          onCancel={() => move.finish(false)}
+          onKeyDown={(event) => {
+            const step = event.shiftKey ? 40 : 10
+            const delta: Record<string, [number, number]> = {
+              ArrowLeft: [-step, 0],
+              ArrowRight: [step, 0],
+              ArrowUp: [0, -step],
+              ArrowDown: [0, step],
+            }
+            if (delta[event.key]) {
+              event.preventDefault()
+              move.moveBy(...delta[event.key])
+            }
+            if (event.key === 'Enter' && event.target === event.currentTarget) {
+              event.preventDefault()
+              move.finish(true)
+            }
+          }}
+        >
+          <h2>Move {window.title}</h2>
+          <p id={`${windowElementId(id)}-move-help`}>
+            Use arrow keys to move, Shift for larger steps. Enter on Apply
+            saves; Cancel or Escape restores the position.
+          </p>
+          <p role="status">
+            Position: {move.position?.x}, {move.position?.y}
+          </p>
+          <div aria-label="Move directions">
+            <button onClick={() => move.moveBy(-10, 0)}>Left</button>
+            <button onClick={() => move.moveBy(0, -10)}>Up</button>
+            <button onClick={() => move.moveBy(0, 10)}>Down</button>
+            <button onClick={() => move.moveBy(10, 0)}>Right</button>
+          </div>
+          <button data-dialog-initial-focus onClick={() => move.finish(true)}>
+            Apply
+          </button>
+          <button onClick={() => move.finish(false)}>Cancel</button>
+        </Dialog>
+      )}
       <div className={styles.content}>
         <AppBoundary onCrash={() => runtime.reportCrash(id)}>
           {content ? (

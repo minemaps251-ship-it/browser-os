@@ -19,10 +19,15 @@ export function createBrowserRuntime(
       window: () => crypto.randomUUID() as WindowId,
     },
     now: Date.now,
-    getUsableArea: () => ({
-      width: Math.max(1, window.innerWidth - 32),
-      height: Math.max(1, window.innerHeight - 180),
-    }),
+    getUsableArea: () => {
+      const area = document
+        .getElementById('desktop-workspace')
+        ?.getBoundingClientRect()
+      return {
+        width: Math.max(1, area?.width || window.innerWidth - 32),
+        height: Math.max(1, area?.height || window.innerHeight - 180),
+      }
+    },
     load: async (appId, scope) => {
       const entry = entries.get(appId)
       if (!entry) throw new Error('Missing application renderer')

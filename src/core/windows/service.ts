@@ -1,3 +1,4 @@
+import { constrainPosition, type Position } from './geometry'
 import { createStore } from 'zustand/vanilla'
 import type { AppId, ProcessId, WindowId } from '../shared/ids'
 import type { Size } from '../shared/geometry'
@@ -17,11 +18,13 @@ export interface WindowInstance {
 }
 export interface WindowSnapshot {
   readonly byId: Readonly<Partial<Record<WindowId, WindowInstance>>>
+  readonly ids: readonly WindowId[]
   readonly order: readonly WindowId[]
   readonly focusedId: WindowId | null
 }
 export const emptyWindows = (): WindowSnapshot => ({
   byId: {},
+  ids: [],
   order: [],
   focusedId: null,
 })
@@ -63,6 +66,7 @@ export function openWindow(
   }
   return {
     byId: { ...state.byId, [window.id]: window },
+    ids: [...state.ids, window.id],
     order: [...state.order, window.id],
     focusedId: window.id,
   }
@@ -88,9 +92,28 @@ export function removeWindow(
   const order = state.order.filter((current) => current !== id)
   return {
     byId,
+    ids: state.ids.filter((current) => current !== id),
     order,
     focusedId:
       state.focusedId === id ? (order.at(-1) ?? null) : state.focusedId,
+  }
+}
+export function moveWindow(
+  state: WindowSnapshot,
+  id: WindowId,
+  position: Position,
+  area: Size,
+): WindowSnapshot {
+  const window = state.byId[id]
+  if (!window) return state
+  const next = constrainPosition(window.bounds, position, area)
+  if (next.x === window.bounds.x && next.y === window.bounds.y) return state
+  return {
+    ...state,
+    byId: {
+      ...state.byId,
+      [id]: { ...window, bounds: { ...window.bounds, ...next } },
+    },
   }
 }
 export function createWindowService() {
@@ -106,6 +129,8 @@ export function createWindowService() {
       store.setState((state) => openWindow(state, window), true),
     focus: (id: WindowId) =>
       store.setState((state) => focusWindow(state, id), true),
+    move: (id: WindowId, position: Position, area: Size) =>
+      store.setState((state) => moveWindow(state, id, position, area), true),
     remove: (id: WindowId) =>
       store.setState((state) => removeWindow(state, id), true),
   }

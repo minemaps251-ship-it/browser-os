@@ -1,3 +1,4 @@
+import type { Position } from '../windows/geometry'
 import type { ApplicationRegistry } from '../applications/registry'
 import type { Size } from '../shared/geometry'
 import { createProcessScope, type ProcessScope } from '../processes/scope'
@@ -120,6 +121,9 @@ export function createRuntime(deps: Dependencies) {
     launch,
     focusWindow: (id: WindowId) => {
       if (!disposed) windows.focus(id)
+    },
+    moveWindow: (id: WindowId, position: Position, area: Size) => {
+      if (!disposed) windows.move(id, position, area)
     },
     requestCloseWindow,
     listProcesses: () => [...processes.values()],

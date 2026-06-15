@@ -55,7 +55,7 @@ export function DesktopShell() {
           {error}
         </p>
       )}
-      <div className={styles.workspace}>
+      <div id="desktop-workspace" className={styles.workspace}>
         <div className={styles.hint} aria-hidden="true">
           <span>YOUR SPACE TO EXPLORE</span>
           <strong>Start with a window.</strong>
