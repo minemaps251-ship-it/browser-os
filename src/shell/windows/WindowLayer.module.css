@@ -2,3 +2,11 @@
   position: absolute;
   inset: 0;
 }
+
+/* Empty workspace passes clicks to shortcuts; each window still receives input. */
+.layer {
+  pointer-events: none;
+}
+.layer > * {
+  pointer-events: auto;
+}

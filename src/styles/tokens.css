@@ -1,37 +1,59 @@
 :root {
-  --document-background: #e8eef0;
-  --surface: #ffffff;
-  --desktop-background:
-    radial-gradient(ellipse at 80% 30%, #d4e6df, transparent 65%), #e8eef0;
-  --accent-contrast: white;
-  --window-border: #b9c9ce;
-  --taskbar-background: #ffffffc9;
-  --shadow-window: 0 16px 50px #26434b20;
-  --shadow-window-focused: 0 18px 60px #26434b30;
-  --danger-surface: #f5dfdf;
-  --danger-text: #992b2b;
-  --text: #20333c;
-  --muted: #596b74;
-  --line: #d6e0e4;
-  --accent: #166b64;
-  --focus: #075cbd;
+  --document-background: #ebe6df;
+  --surface: #fffdfa;
+  --desktop-background: #ded5c9;
+  --accent-contrast: #ffffff;
+  --window-border: #c8c3bd;
+  --taskbar-background: #fffdf5ed;
+  --system-bar-background: #fffdf5ed;
+  --shadow-window: 0 12px 32px #29211b24, 0 2px 6px #29211b12;
+  --shadow-window-focused: 0 24px 64px #29211b36, 0 3px 10px #29211b18;
+  --danger-surface: #f9e3df;
+  --danger-text: #a32f23;
+  --text: #292723;
+  --muted: #68635c;
+  --line: #dfdbd5;
+  --accent: #a44725;
+  --focus: #175fc1;
+  --shortcut-text: #ffffff;
+  --shortcut-label: #302821eb;
+  --shortcut-selection: #ffffff26;
+  --app-icon-background: #fffaf1;
+  --app-icon-text: #923a20;
+  --wallpaper-base: #ded5c9;
+  --wallpaper-rear: #bdc7bd;
+  --wallpaper-middle: #d29b77;
+  --wallpaper-front: #ad654e;
+  --wallpaper-edge: #6d5350;
   --space: 16px;
-  --radius: 14px;
+  --radius: 12px;
+  --radius-small: 6px;
+  --radius-large: 18px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --surface: #172a30;
-    --desktop-background:
-      radial-gradient(ellipse at 80% 30%, #243e38, transparent 65%), #13242c;
-    --accent-contrast: #14272b;
-    --window-border: var(--line);
-    --taskbar-background: #172a30de;
-    --text: #e4eef0;
-    --muted: #b2c4ca;
-    --line: #365057;
-    --accent: #9cd3bd;
-    --focus: #8ec4ff;
+    --document-background: #171c25;
+    --surface: #24272e;
+    --desktop-background: #202a3a;
+    --window-border: #50525a;
+    --taskbar-background: #24272ef5;
+    --system-bar-background: #24272ef5;
+    --text: #f1eee9;
+    --muted: #b7b2ac;
+    --line: #45464d;
+    --accent: #f0ae89;
+    --accent-contrast: #292018;
+    --focus: #a3c8ff;
+    --danger-surface: #4e292d;
+    --danger-text: #ffc0b6;
+    --shadow-window: 0 12px 32px #00000040;
+    --shadow-window-focused: 0 24px 64px #00000066, 0 3px 10px #00000033;
+    --wallpaper-base: #202a3a;
+    --wallpaper-rear: #374857;
+    --wallpaper-middle: #656073;
+    --wallpaper-front: #704f5c;
+    --wallpaper-edge: #34313f;
     color-scheme: dark;
   }
 }

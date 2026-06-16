@@ -1,0 +1,15 @@
+.clock {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@media (max-width: 420px) {
+  .date {
+    display: none;
+  }
+}

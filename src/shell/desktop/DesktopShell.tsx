@@ -5,6 +5,8 @@ import type { AppId } from '../../core/shared/ids'
 import { WindowLayer } from '../windows/WindowLayer'
 import { Taskbar } from '../taskbar/Taskbar'
 import { focusWindowElement } from '../windows/focus'
+import { DesktopClock } from './DesktopClock'
+import { DesktopWallpaper } from './DesktopWallpaper'
 
 export function DesktopShell() {
   const runtime = useRuntime()
@@ -20,30 +22,19 @@ export function DesktopShell() {
   }
   return (
     <main className={styles.desktop}>
+      <DesktopWallpaper />
       <header className={styles.header}>
         <div className={styles.identity}>
-          <span className={styles.brand} aria-hidden="true">
-            B
-          </span>
-          <div>
-            <h1>BrowserOS</h1>
-            <p>A workspace in your browser</p>
-          </div>
+          <svg className={styles.brand} viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="2" />
+            <rect x="14" y="3" width="7" height="7" rx="2" />
+            <rect x="3" y="14" width="7" height="7" rx="2" />
+            <path d="M14 14h7v7h-7z" />
+          </svg>
+          <h1>BrowserOS</h1>
+          <span className={styles.location}>Desktop</span>
         </div>
-        <nav aria-label="Application launcher">
-          {runtime.registry.list().map((app, index) => (
-            <button
-              id={index === 0 ? 'app-launcher' : undefined}
-              key={app.id}
-              disabled={pending !== null}
-              onClick={() => {
-                void launch(app.id)
-              }}
-            >
-              <span aria-hidden="true">{app.icon}</span> Open {app.name}
-            </button>
-          ))}
-        </nav>
+        <DesktopClock />
       </header>
       {pending && (
         <p className={styles.status} role="status">
@@ -56,11 +47,25 @@ export function DesktopShell() {
         </p>
       )}
       <div id="desktop-workspace" className={styles.workspace}>
-        <div className={styles.hint} aria-hidden="true">
-          <span>YOUR SPACE TO EXPLORE</span>
-          <strong>Start with a window.</strong>
-          <p>Open About BrowserOS to discover the workspace.</p>
-        </div>
+        <nav className={styles.shortcuts} aria-label="Application launcher">
+          {runtime.registry.list().map((app, index) => (
+            <button
+              className={styles.shortcut}
+              aria-label={`Open ${app.name}`}
+              id={index === 0 ? 'app-launcher' : undefined}
+              key={app.id}
+              disabled={pending !== null}
+              onClick={() => {
+                void launch(app.id)
+              }}
+            >
+              <span className={styles.appIcon} aria-hidden="true">
+                {app.icon}
+              </span>
+              <span className={styles.appLabel}>{app.name}</span>
+            </button>
+          ))}
+        </nav>
         <WindowLayer />
       </div>
       <Taskbar />
