@@ -1,5 +1,6 @@
 .root {
   position: relative;
+  flex-shrink: 0;
 }
 .trigger {
   width: 32px;

@@ -58,6 +58,7 @@ export function createRuntime(deps: Dependencies) {
         appId,
         processId,
         title: manifest.name,
+        status: 'visible',
         bounds: initialBounds(
           manifest.window.defaultSize,
           deps.getUsableArea(),
@@ -92,7 +93,7 @@ export function createRuntime(deps: Dependencies) {
         (window) => window?.appId === appId,
       )
       if (existing) {
-        windows.focus(existing.id)
+        windows.restore(existing.id)
         return Promise.resolve({
           ok: true,
           windowId: existing.id,
@@ -125,6 +126,12 @@ export function createRuntime(deps: Dependencies) {
     launch,
     focusWindow: (id: WindowId) => {
       if (!disposed) windows.focus(id)
+    },
+    minimizeWindow: (id: WindowId) => {
+      if (!disposed) windows.minimize(id)
+    },
+    restoreWindow: (id: WindowId) => {
+      if (!disposed) windows.restore(id)
     },
     moveWindow: (id: WindowId, position: Position, area: Size) => {
       if (!disposed) windows.move(id, position, area)

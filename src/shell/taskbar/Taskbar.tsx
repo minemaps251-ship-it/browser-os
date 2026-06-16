@@ -34,16 +34,22 @@ export function Taskbar() {
 function TaskbarItem({ id }: { id: WindowId }) {
   const runtime = useRuntime()
   const title = useStore(runtime.windows, (state) => state.byId[id]?.title)
+  const minimized = useStore(
+    runtime.windows,
+    (state) => state.byId[id]?.status === 'minimized',
+  )
   const focused = useStore(runtime.windows, (state) => state.focusedId === id)
   return (
     <button
       aria-pressed={focused}
+      aria-label={minimized ? `${title} (minimized)` : title}
       onClick={() => {
-        runtime.focusWindow(id)
+        runtime.restoreWindow(id)
         focusWindowElement(id)
       }}
     >
       {title}
+      {minimized && <span aria-hidden="true"> — minimized</span>}
     </button>
   )
 }

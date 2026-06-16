@@ -14,6 +14,7 @@ export interface WindowInstance {
   readonly appId: AppId
   readonly processId: ProcessId
   readonly title: string
+  readonly status: 'visible' | 'minimized'
   readonly bounds: Bounds
 }
 export interface WindowSnapshot {
@@ -54,6 +55,8 @@ export function openWindow(
   window: WindowInstance,
 ): WindowSnapshot {
   if (state.byId[window.id]) throw new Error('Duplicate window ID')
+  if (window.status !== 'visible')
+    throw new Error('New windows must be visible')
   const { x, y, width, height } = window.bounds
   if (
     ![x, y, width, height].every(Number.isFinite) ||
@@ -75,7 +78,12 @@ export function focusWindow(
   state: WindowSnapshot,
   id: WindowId,
 ): WindowSnapshot {
-  if (!state.byId[id] || state.focusedId === id) return state
+  if (
+    !state.byId[id] ||
+    state.byId[id]?.status === 'minimized' ||
+    state.focusedId === id
+  )
+    return state
   return {
     ...state,
     order: [...state.order.filter((current) => current !== id), id],
@@ -95,8 +103,51 @@ export function removeWindow(
     ids: state.ids.filter((current) => current !== id),
     order,
     focusedId:
-      state.focusedId === id ? (order.at(-1) ?? null) : state.focusedId,
+      state.focusedId === id
+        ? (order.findLast(
+            (candidate) => byId[candidate]?.status === 'visible',
+          ) ?? null)
+        : state.focusedId,
   }
+}
+export function minimizeWindow(
+  state: WindowSnapshot,
+  id: WindowId,
+): WindowSnapshot {
+  const window = state.byId[id]
+  if (!window || window.status === 'minimized') return state
+  const byId: WindowSnapshot['byId'] = {
+    ...state.byId,
+    [id]: { ...window, status: 'minimized' as const },
+  }
+  return {
+    ...state,
+    byId,
+    focusedId:
+      state.focusedId === id
+        ? (state.order.findLast(
+            (candidate) => byId[candidate]?.status === 'visible',
+          ) ?? null)
+        : state.focusedId,
+  }
+}
+export function restoreWindow(
+  state: WindowSnapshot,
+  id: WindowId,
+): WindowSnapshot {
+  const window = state.byId[id]
+  if (!window) return state
+  const visible =
+    window.status === 'minimized'
+      ? {
+          ...state,
+          byId: {
+            ...state.byId,
+            [id]: { ...window, status: 'visible' as const },
+          },
+        }
+      : state
+  return focusWindow(visible, id)
 }
 export function moveWindow(
   state: WindowSnapshot,
@@ -148,6 +199,10 @@ export function createWindowService() {
       store.setState((state) => openWindow(state, window), true),
     focus: (id: WindowId) =>
       store.setState((state) => focusWindow(state, id), true),
+    minimize: (id: WindowId) =>
+      store.setState((state) => minimizeWindow(state, id), true),
+    restore: (id: WindowId) =>
+      store.setState((state) => restoreWindow(state, id), true),
     move: (id: WindowId, position: Position, area: Size) =>
       store.setState((state) => moveWindow(state, id, position, area), true),
     resize: (id: WindowId, bounds: Bounds, minimum: Size, area: Size) =>

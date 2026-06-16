@@ -92,6 +92,9 @@ export function useWindowInteraction(
       setMode(null)
       setPreviewBounds(null)
     }
+    const unsubscribe = runtime.windows.subscribe((state) => {
+      if (state.byId[id]?.status === 'minimized') restore()
+    })
     function resize() {
       restore()
       const bounds = runtime.windows.getState().byId[id]?.bounds
@@ -115,6 +118,7 @@ export function useWindowInteraction(
     window.addEventListener('keydown', key)
     window.addEventListener('blur', blur)
     return () => {
+      unsubscribe()
       observer?.disconnect()
       window.removeEventListener('resize', resize)
       window.removeEventListener('keydown', key)
@@ -133,7 +137,13 @@ export function useWindowInteraction(
     edge?: ResizeEdge,
   ) {
     const bounds = runtime.windows.getState().byId[id]?.bounds
-    if (!bounds || session.current || window.innerWidth <= 600) return false
+    if (
+      runtime.windows.getState().byId[id]?.status !== 'visible' ||
+      !bounds ||
+      session.current ||
+      window.innerWidth <= 600
+    )
+      return false
     runtime.focusWindow(id)
     const record = runtime.windows.getState().byId[id]!
     const minimum = runtime.registry.get(record.appId)!.window.minSize

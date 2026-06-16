@@ -8,7 +8,11 @@ import { useStore } from 'zustand'
 import type { WindowId } from '../../core/shared/ids'
 import { useRuntime } from '../../app/runtimeContext'
 import { AppBoundary } from '../../app/AppBoundary'
-import { windowElementId } from './focus'
+import {
+  windowElementId,
+  focusWindowElement,
+  rememberWindowFocus,
+} from './focus'
 
 export function WindowFrame({ id }: { id: WindowId }) {
   const runtime = useRuntime()
@@ -21,12 +25,13 @@ export function WindowFrame({ id }: { id: WindowId }) {
   useEffect(() => {
     if (
       focused &&
+      window?.status === 'visible' &&
       frame.current &&
       !frame.current.contains(document.activeElement)
     ) {
-      frame.current.focus()
+      focusWindowElement(id)
     }
-  }, [focused, frame])
+  }, [focused, frame, id, window?.status])
   if (!window) return null
   const content = runtime.getContent(window.appId)
   const action = interaction.kind === 'resize' ? 'Resize' : 'Move'
@@ -34,6 +39,8 @@ export function WindowFrame({ id }: { id: WindowId }) {
     <section
       id={windowElementId(id)}
       ref={frame}
+      hidden={window.status === 'minimized'}
+      inert={window.status === 'minimized'}
       tabIndex={-1}
       aria-label={`${window.title} window`}
       className={`${styles.frame}${focused ? ` ${styles.focused}` : ''}`}
@@ -45,7 +52,11 @@ export function WindowFrame({ id }: { id: WindowId }) {
         zIndex,
       }}
       onPointerDown={() => runtime.focusWindow(id)}
-      onFocus={() => runtime.focusWindow(id)}
+      onFocus={(event) => {
+        if (frame.current && event.target instanceof HTMLElement)
+          rememberWindowFocus(frame.current, event.target)
+        runtime.focusWindow(id)
+      }}
     >
       <header
         className={`${styles.titlebar}${interaction.mode === 'pointer' && interaction.kind === 'move' ? ` ${styles.dragging}` : ''}`}
@@ -59,12 +70,21 @@ export function WindowFrame({ id }: { id: WindowId }) {
           B
         </span>
         <h2>{window.title}</h2>
-        <WindowMenu
-          title={window.title}
-          buttonRef={actions}
-          onMove={() => interaction.startKeyboard('move')}
-          onResize={() => interaction.startKeyboard('resize')}
-        />
+        {window.status === 'visible' && (
+          <WindowMenu
+            title={window.title}
+            buttonRef={actions}
+            onMove={() => interaction.startKeyboard('move')}
+            onResize={() => interaction.startKeyboard('resize')}
+          />
+        )}
+        <button
+          className={styles.minimize}
+          aria-label={`Minimize ${window.title}`}
+          onClick={() => runtime.minimizeWindow(id)}
+        >
+          −
+        </button>
         <button
           className={styles.close}
           aria-label={`Close ${window.title}`}
@@ -73,7 +93,7 @@ export function WindowFrame({ id }: { id: WindowId }) {
           ×
         </button>
       </header>
-      {interaction.mode === 'keyboard' && (
+      {interaction.mode === 'keyboard' && window.status === 'visible' && (
         <Dialog
           label={`${action} ${window.title}`}
           returnFocus={actions}
@@ -149,7 +169,7 @@ export function WindowFrame({ id }: { id: WindowId }) {
           onLostPointerCapture={interaction.pointerCancel}
         />
       ))}
-      <div className={styles.content}>
+      <div data-window-content className={styles.content}>
         <AppBoundary onCrash={() => runtime.reportCrash(id)}>
           {content ? (
             content
