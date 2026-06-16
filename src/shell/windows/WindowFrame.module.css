@@ -12,14 +12,17 @@
   overflow: visible;
 }
 .frame.focused {
-  border-color: var(--accent);
+  border-color: var(--window-border-active);
   box-shadow: var(--shadow-window-focused);
 }
 .titlebar {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--window-titlebar);
+  border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+  color: var(--muted);
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
   cursor: grab;
@@ -27,9 +30,17 @@
   user-select: none;
 }
 .brand {
-  color: var(--accent);
-  font-size: 13px;
-  font-weight: 800;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+  font-size: 11px;
+  font-weight: 650;
 }
 .titlebar h2 {
   flex: 1;
@@ -41,20 +52,65 @@
   font-size: 12px;
   font-weight: 600;
 }
+.frame.focused .titlebar {
+  background: var(--window-titlebar-active);
+  color: var(--text);
+}
 .close,
 .minimize {
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
   width: 32px;
   height: 32px;
+  padding: 0;
   border: 0;
-  border-radius: 7px;
+  border-radius: 8px;
   background: transparent;
-  color: var(--muted);
-  font-size: 22px;
 }
-.close:hover {
-  background: var(--danger-surface);
-  color: var(--danger-text);
+.controlDot {
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--window-control-idle);
+  box-shadow: inset 0 0 0 1px #00000012;
+}
+.close .controlDot {
+  color: var(--window-close-symbol);
+}
+.minimize .controlDot {
+  color: var(--window-minimize-symbol);
+}
+.frame.focused .close .controlDot,
+.close:hover .controlDot,
+.close:focus-visible .controlDot {
+  background: var(--window-close);
+}
+.frame.focused .minimize .controlDot,
+.minimize:hover .controlDot,
+.minimize:focus-visible .controlDot {
+  background: var(--window-minimize);
+}
+.controlDot svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0;
+}
+.close:hover svg,
+.minimize:hover svg,
+.close:focus-visible svg,
+.minimize:focus-visible svg {
+  opacity: 1;
+}
+.close:focus-visible,
+.minimize:focus-visible {
+  outline-offset: -2px;
 }
 .content {
   overflow: auto;
@@ -79,6 +135,9 @@
   .minimize {
     width: 44px;
     height: 44px;
+  }
+  .controlDot svg {
+    opacity: 1;
   }
 }
 @media (forced-colors: active) {
@@ -171,6 +230,19 @@
 .frame[hidden] {
   display: none;
 }
-.minimize:hover {
-  background: var(--line);
+
+@media (pointer: coarse) {
+  .controlDot svg {
+    opacity: 1;
+  }
+}
+@media (forced-colors: active) {
+  .controlDot {
+    background: ButtonFace;
+    color: ButtonText;
+    border: 1px solid ButtonText;
+  }
+  .controlDot svg {
+    opacity: 1;
+  }
 }

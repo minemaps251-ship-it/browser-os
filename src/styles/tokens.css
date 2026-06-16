@@ -4,6 +4,14 @@
   --desktop-background: #ded5c9;
   --accent-contrast: #ffffff;
   --window-border: #c8c3bd;
+  --window-border-active: #a9a39b;
+  --window-titlebar: #efede8;
+  --window-titlebar-active: #f7f4ee;
+  --window-control-idle: #d0cbc4;
+  --window-close: #e66b60;
+  --window-close-symbol: #62231d;
+  --window-minimize: #e9b653;
+  --window-minimize-symbol: #604411;
   --taskbar-background: #f6eee1a6;
   --taskbar-fallback: #f6eee1;
   --taskbar-border: #fff9ee80;
@@ -44,6 +52,12 @@
     --surface: #24272e;
     --desktop-background: #202a3a;
     --window-border: #50525a;
+    --window-border-active: #77747d;
+    --window-titlebar: #292b32;
+    --window-titlebar-active: #32343d;
+    --window-control-idle: #55555e;
+    --window-close: #e98177;
+    --window-minimize: #efc16d;
     --taskbar-background: #24242eb8;
     --taskbar-fallback: #2d2b35;
     --taskbar-border: #f3e9df29;

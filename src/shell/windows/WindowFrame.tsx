@@ -83,14 +83,22 @@ export function WindowFrame({ id }: { id: WindowId }) {
           aria-label={`Minimize ${window.title}`}
           onClick={() => runtime.minimizeWindow(id)}
         >
-          −
+          <span className={styles.controlDot} aria-hidden="true">
+            <svg viewBox="0 0 12 12">
+              <path d="M3 6h6" />
+            </svg>
+          </span>
         </button>
         <button
           className={styles.close}
           aria-label={`Close ${window.title}`}
           onClick={() => runtime.requestCloseWindow(id)}
         >
-          ×
+          <span className={styles.controlDot} aria-hidden="true">
+            <svg viewBox="0 0 12 12">
+              <path d="m3.5 3.5 5 5m0-5-5 5" />
+            </svg>
+          </span>
         </button>
       </header>
       {interaction.mode === 'keyboard' && window.status === 'visible' && (
