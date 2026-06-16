@@ -1,7 +1,7 @@
 .taskbar {
   align-self: center;
   max-width: 100%;
-  min-height: 70px;
+  min-height: 82px;
   margin-top: 12px;
   padding: 8px;
   background: var(--taskbar-fallback);
@@ -11,12 +11,8 @@
     inset 0 1px 0 var(--taskbar-highlight),
     var(--taskbar-shadow);
 }
-/* Keep the workspace bounds stable when the last window closes. */
-.taskbar[data-empty='true'] {
-  visibility: hidden;
-}
 .taskbar nav {
-  min-height: 52px;
+  min-height: 64px;
   display: flex;
   gap: 6px;
   max-width: 100%;
@@ -26,17 +22,13 @@
 .taskbar button {
   position: relative;
   flex-shrink: 0;
-  min-height: 44px;
-  max-width: 220px;
+  width: 56px;
+  height: 56px;
   border: 1px solid transparent;
-  padding: 8px 14px 14px;
-  border-radius: 10px;
+  padding: 5px 5px 11px;
+  border-radius: 14px;
   color: var(--text);
   background: transparent;
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .taskbar button:hover {
   background: var(--taskbar-hover);
@@ -93,4 +85,56 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--app-icon-background);
+  color: var(--app-icon-text);
+  border: 1px solid #ffffff66;
+  box-shadow:
+    0 2px 5px #00000014,
+    inset 0 -2px 0 #923a2012;
+  font-size: 25px;
+  font-weight: 650;
+}
+.tooltip,
+.message {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 7px 12px;
+  border: 1px solid var(--window-border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  text-align: center;
+  box-shadow: 0 4px 12px #00000018;
+}
+.tooltip {
+  pointer-events: none;
+}
+.message {
+  position: fixed;
+  bottom: 100px;
+}
+
+.taskbar button:focus-visible {
+  outline-offset: -2px;
+}
+.tooltip {
+  z-index: 1;
+}
+.message {
+  z-index: 2;
 }

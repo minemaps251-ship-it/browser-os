@@ -31,7 +31,7 @@ test('minimizes by keyboard, excludes hidden chrome from Tab, restores the same 
   await page.getByRole('button', { name: 'Close About BrowserOS' }).click()
   await expect(
     page.getByRole('navigation', { name: 'Running applications' }),
-  ).toBeHidden()
+  ).toBeVisible()
 })
 
 test('cancels move/resize previews on minimize and survives repeated restore', async ({
