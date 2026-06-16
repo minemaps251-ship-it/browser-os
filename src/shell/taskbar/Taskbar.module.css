@@ -1,47 +1,96 @@
-.label,
-.session {
-  font-size: 9px;
-  color: var(--muted);
-  letter-spacing: 1.7px;
-  font-weight: 700;
-}
 .taskbar {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 12px 16px;
-  background: var(--taskbar-background);
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  align-self: center;
+  max-width: 100%;
+  min-height: 70px;
   margin-top: 12px;
-  min-height: 54px;
+  padding: 8px;
+  background: var(--taskbar-fallback);
+  border: 1px solid var(--taskbar-border);
+  border-radius: 22px;
+  box-shadow:
+    inset 0 1px 0 var(--taskbar-highlight),
+    var(--taskbar-shadow);
+}
+/* Keep the workspace bounds stable when the last window closes. */
+.taskbar[data-empty='true'] {
+  visibility: hidden;
 }
 .taskbar nav {
-  flex: 1;
+  min-height: 52px;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 4px;
 }
 .taskbar button {
-  border: 1px solid var(--line);
-  padding: 8px 12px;
-  border-radius: 8px;
+  position: relative;
+  flex-shrink: 0;
+  min-height: 44px;
+  max-width: 220px;
+  border: 1px solid transparent;
+  padding: 8px 14px 14px;
+  border-radius: 10px;
   color: var(--text);
-  background: var(--surface);
+  background: transparent;
   font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.taskbar button:hover {
+  background: var(--taskbar-hover);
 }
 .taskbar button[aria-pressed='true'] {
+  background: var(--taskbar-active);
+  border-color: var(--taskbar-active-border);
+}
+.indicator {
+  position: absolute;
+  bottom: 5px;
+  left: calc(50% - 2px);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.taskbar button[aria-pressed='true'] .indicator {
   background: var(--accent);
-  color: var(--accent-contrast);
-  border-color: var(--accent);
 }
-.empty {
-  color: var(--muted);
-  font-size: 12px;
+.taskbar button[data-minimized='true'] .indicator {
+  background: transparent;
+  border: 1px solid var(--muted);
 }
-@media (max-width: 600px) {
-  .session,
-  .label {
-    display: none;
+@media (forced-colors: active) {
+  .taskbar button[aria-pressed='true'] {
+    border-color: Highlight;
+  }
+  .indicator {
+    background: ButtonText;
+  }
+}
+
+/* Limit glass compositing to the small Dock, with an opaque fallback. */
+@supports (backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px)) {
+  .taskbar {
+    background: var(--taskbar-background);
+    -webkit-backdrop-filter: blur(20px) saturate(125%);
+    backdrop-filter: blur(20px) saturate(125%);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .taskbar {
+    background: var(--taskbar-fallback);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (forced-colors: active) {
+  .taskbar {
+    background: Canvas;
+    border-color: CanvasText;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }

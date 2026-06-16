@@ -26,7 +26,9 @@ test('boots BrowserOS, launches About, and closes with keyboard focus restored',
   await page.keyboard.press('Enter')
   await expect(window).toHaveCount(0)
   await expect(launcher).toBeFocused()
-  await expect(page.getByText('No applications running')).toBeVisible()
+  await expect(
+    page.getByRole('navigation', { name: 'Running applications' }),
+  ).toBeHidden()
 })
 
 test('keeps the About controls reachable on a narrow viewport', async ({

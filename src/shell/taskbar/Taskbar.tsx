@@ -16,17 +16,12 @@ export function Taskbar() {
     previousFocus.current = focusedId
   }, [focusedId])
   return (
-    <footer className={styles.taskbar}>
-      <span className={styles.label}>WORKSPACE</span>
+    <footer className={styles.taskbar} data-empty={windows.length === 0}>
       <nav aria-label="Running applications">
         {windows.map((id) => (
           <TaskbarItem key={id} id={id} />
         ))}
-        {windows.length === 0 && (
-          <span className={styles.empty}>No applications running</span>
-        )}
       </nav>
-      <span className={styles.session}>LOCAL SESSION</span>
     </footer>
   )
 }
@@ -41,6 +36,7 @@ function TaskbarItem({ id }: { id: WindowId }) {
   const focused = useStore(runtime.windows, (state) => state.focusedId === id)
   return (
     <button
+      data-minimized={minimized}
       aria-pressed={focused}
       aria-label={minimized ? `${title} (minimized)` : title}
       onClick={() => {
@@ -49,7 +45,7 @@ function TaskbarItem({ id }: { id: WindowId }) {
       }}
     >
       {title}
-      {minimized && <span aria-hidden="true"> — minimized</span>}
+      <span className={styles.indicator} aria-hidden="true" />
     </button>
   )
 }
