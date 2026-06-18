@@ -10,6 +10,8 @@
   --window-control-idle: #d0cbc4;
   --window-close: #e66b60;
   --window-close-symbol: #62231d;
+  --window-maximize: #63ba82;
+  --window-maximize-symbol: #20482c;
   --window-minimize: #e9b653;
   --window-minimize-symbol: #604411;
   --taskbar-background: #f6eee1a6;
@@ -57,6 +59,7 @@
     --window-titlebar-active: #32343d;
     --window-control-idle: #55555e;
     --window-close: #e98177;
+    --window-maximize: #83c99b;
     --window-minimize: #efc16d;
     --taskbar-background: #24242eb8;
     --taskbar-fallback: #2d2b35;

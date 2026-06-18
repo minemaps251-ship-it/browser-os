@@ -57,7 +57,8 @@
   color: var(--text);
 }
 .close,
-.minimize {
+.minimize,
+.maximize {
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -132,7 +133,8 @@
     padding: 20px;
   }
   .close,
-  .minimize {
+  .minimize,
+  .maximize {
     width: 44px;
     height: 44px;
   }
@@ -245,4 +247,23 @@
   .controlDot svg {
     opacity: 1;
   }
+}
+
+.maximize .controlDot {
+  color: var(--window-maximize-symbol);
+}
+.frame.focused .maximize .controlDot,
+.maximize:hover .controlDot,
+.maximize:focus-visible .controlDot {
+  background: var(--window-maximize);
+}
+.maximize:hover svg,
+.maximize:focus-visible svg {
+  opacity: 1;
+}
+.maximize:focus-visible {
+  outline-offset: -2px;
+}
+.frame[data-maximized='true'] .titlebar {
+  cursor: default;
 }

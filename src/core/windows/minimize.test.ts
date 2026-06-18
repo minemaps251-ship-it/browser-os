@@ -15,6 +15,7 @@ const first: WindowInstance = {
   processId: 'p' as ProcessId,
   title: 'One',
   status: 'visible',
+  placement: { kind: 'normal' },
   bounds: { x: 24, y: 24, width: 300, height: 200 },
 }
 const second = { ...first, id: 'two' as WindowId }

@@ -6,8 +6,12 @@ export function WindowMenu({
   buttonRef,
   onMove,
   onResize,
+  maximized,
+  onMaximize,
 }: {
   title: string
+  maximized: boolean
+  onMaximize: () => void
   buttonRef: RefObject<HTMLButtonElement | null>
   onMove: () => void
   onResize: () => void
@@ -50,7 +54,8 @@ export function WindowMenu({
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault()
-            initialItem.current = event.key === 'ArrowUp' ? 1 : 0
+            initialItem.current =
+              event.key === 'ArrowUp' ? (maximized ? 0 : 2) : 0
             setOpen(true)
           }
         }}
@@ -93,25 +98,40 @@ export function WindowMenu({
             }
           }}
         >
+          {!maximized && (
+            <button
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => {
+                setOpen(false)
+                onMove()
+              }}
+            >
+              Move window
+            </button>
+          )}
+          {!maximized && (
+            <button
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => {
+                setOpen(false)
+                onResize()
+              }}
+            >
+              Resize window
+            </button>
+          )}
           <button
             role="menuitem"
             tabIndex={-1}
             onClick={() => {
               setOpen(false)
-              onMove()
+              onMaximize()
+              buttonRef.current?.focus()
             }}
           >
-            Move window
-          </button>
-          <button
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => {
-              setOpen(false)
-              onResize()
-            }}
-          >
-            Resize window
+            {maximized ? 'Restore window size' : 'Maximize window'}
           </button>
         </div>
       )}

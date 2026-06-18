@@ -91,6 +91,7 @@ describe('resize geometry', () => {
       processId: 'p1' as ProcessId,
       title: 'First',
       status: 'visible',
+      placement: { kind: 'normal' },
       bounds: start,
     }
     const second = { ...first, id: 'second' as WindowId }

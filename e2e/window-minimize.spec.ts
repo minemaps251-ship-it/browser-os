@@ -102,7 +102,7 @@ test('mobile minimize/restore retains reachable controls', async ({ page }) => {
   ).toBeInViewport()
 })
 
-test('keeps three titlebar controls inside the minimum-width window', async ({
+test('keeps four titlebar controls inside the minimum-width window', async ({
   page,
 }) => {
   await page.goto('/')
@@ -122,6 +122,7 @@ test('keeps three titlebar controls inside the minimum-width window', async ({
   for (const label of [
     'Window actions for About BrowserOS',
     'Minimize About BrowserOS',
+    'Maximize About BrowserOS',
     'Close About BrowserOS',
   ]) {
     const control = page.getByRole('button', { name: label })

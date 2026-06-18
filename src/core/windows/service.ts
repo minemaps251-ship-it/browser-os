@@ -16,6 +16,9 @@ export interface WindowInstance {
   readonly title: string
   readonly status: 'visible' | 'minimized'
   readonly bounds: Bounds
+  readonly placement:
+    | { readonly kind: 'normal' }
+    | { readonly kind: 'maximized'; readonly restoreBounds: Bounds }
 }
 export interface WindowSnapshot {
   readonly byId: Readonly<Partial<Record<WindowId, WindowInstance>>>
@@ -55,7 +58,7 @@ export function openWindow(
   window: WindowInstance,
 ): WindowSnapshot {
   if (state.byId[window.id]) throw new Error('Duplicate window ID')
-  if (window.status !== 'visible')
+  if (window.status !== 'visible' || window.placement.kind !== 'normal')
     throw new Error('New windows must be visible')
   const { x, y, width, height } = window.bounds
   if (
@@ -156,7 +159,7 @@ export function moveWindow(
   area: Size,
 ): WindowSnapshot {
   const window = state.byId[id]
-  if (!window) return state
+  if (!window || window.placement.kind === 'maximized') return state
   const next = constrainPosition(window.bounds, position, area)
   if (next.x === window.bounds.x && next.y === window.bounds.y) return state
   return {
@@ -175,7 +178,7 @@ export function resizeWindow(
   area: Size,
 ): WindowSnapshot {
   const window = state.byId[id]
-  if (!window) return state
+  if (!window || window.placement.kind === 'maximized') return state
   const bounds = fitBounds(proposed, minimum, area)
   if (
     bounds.x === window.bounds.x &&
@@ -186,6 +189,95 @@ export function resizeWindow(
     return state
   return { ...state, byId: { ...state.byId, [id]: { ...window, bounds } } }
 }
+function equalBounds(a: Bounds, b: Bounds) {
+  return (
+    a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
+  )
+}
+function maximizedBounds(area: Size): Bounds {
+  if (
+    ![area.width, area.height].every(
+      (value) => Number.isFinite(value) && value > 0,
+    )
+  )
+    throw new Error('Usable area must have positive finite dimensions')
+  return { x: 0, y: 0, width: area.width, height: area.height }
+}
+export function maximizeWindow(
+  state: WindowSnapshot,
+  id: WindowId,
+  area: Size,
+): WindowSnapshot {
+  const window = state.byId[id]
+  if (
+    !window ||
+    window.status === 'minimized' ||
+    window.placement.kind === 'maximized'
+  )
+    return state
+  const bounds = maximizedBounds(area)
+  return focusWindow(
+    {
+      ...state,
+      byId: {
+        ...state.byId,
+        [id]: {
+          ...window,
+          bounds,
+          placement: {
+            kind: 'maximized' as const,
+            restoreBounds: window.bounds,
+          },
+        },
+      },
+    },
+    id,
+  )
+}
+export function restoreWindowBounds(
+  state: WindowSnapshot,
+  id: WindowId,
+  minimum: Size,
+  area: Size,
+): WindowSnapshot {
+  const window = state.byId[id]
+  if (
+    !window ||
+    window.status === 'minimized' ||
+    window.placement.kind !== 'maximized'
+  )
+    return state
+  const bounds = fitBounds(window.placement.restoreBounds, minimum, area)
+  return focusWindow(
+    {
+      ...state,
+      byId: {
+        ...state.byId,
+        [id]: {
+          ...window,
+          bounds,
+          placement: { kind: 'normal' as const },
+        },
+      },
+    },
+    id,
+  )
+}
+export function fitWindowToArea(
+  state: WindowSnapshot,
+  id: WindowId,
+  minimum: Size,
+  area: Size,
+): WindowSnapshot {
+  const window = state.byId[id]
+  if (!window) return state
+  if (window.placement.kind === 'normal')
+    return resizeWindow(state, id, window.bounds, minimum, area)
+  const bounds = maximizedBounds(area)
+  if (equalBounds(bounds, window.bounds)) return state
+  return { ...state, byId: { ...state.byId, [id]: { ...window, bounds } } }
+}
+
 export function createWindowService() {
   const store = createStore<WindowSnapshot>(() => emptyWindows())
   return {
@@ -208,6 +300,18 @@ export function createWindowService() {
     resize: (id: WindowId, bounds: Bounds, minimum: Size, area: Size) =>
       store.setState(
         (state) => resizeWindow(state, id, bounds, minimum, area),
+        true,
+      ),
+    maximize: (id: WindowId, area: Size) =>
+      store.setState((state) => maximizeWindow(state, id, area), true),
+    restoreBounds: (id: WindowId, minimum: Size, area: Size) =>
+      store.setState(
+        (state) => restoreWindowBounds(state, id, minimum, area),
+        true,
+      ),
+    fitToArea: (id: WindowId, minimum: Size, area: Size) =>
+      store.setState(
+        (state) => fitWindowToArea(state, id, minimum, area),
         true,
       ),
     remove: (id: WindowId) =>

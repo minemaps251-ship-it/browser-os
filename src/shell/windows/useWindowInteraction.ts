@@ -81,11 +81,13 @@ export function useWindowInteraction(
       session.current = null
       if (raf.current !== null) cancelAnimationFrame(raf.current)
       raf.current = null
+      const committed =
+        runtime.windows.getState().byId[id]?.bounds ?? current.start
       if (element) {
-        element.style.left = `${current.start.x}px`
-        element.style.top = `${current.start.y}px`
-        element.style.width = `${current.start.width}px`
-        element.style.height = `${current.start.height}px`
+        element.style.left = `${committed.x}px`
+        element.style.top = `${committed.y}px`
+        element.style.width = `${committed.width}px`
+        element.style.height = `${committed.height}px`
       }
       if (current.pointer?.target.hasPointerCapture(current.pointer.id))
         current.pointer.target.releasePointerCapture(current.pointer.id)
@@ -93,14 +95,18 @@ export function useWindowInteraction(
       setPreviewBounds(null)
     }
     const unsubscribe = runtime.windows.subscribe((state) => {
-      if (state.byId[id]?.status === 'minimized') restore()
+      if (
+        state.byId[id]?.status === 'minimized' ||
+        state.byId[id]?.placement.kind === 'maximized'
+      )
+        restore()
     })
     function resize() {
       restore()
       const bounds = runtime.windows.getState().byId[id]?.bounds
       const rect = workspace?.getBoundingClientRect()
       if (bounds && rect && rect.width > 0 && rect.height > 0)
-        runtime.resizeWindow(id, bounds, rect)
+        runtime.fitWindowToArea(id, rect)
     }
     function key(event: KeyboardEvent) {
       if (event.key === 'Escape' && session.current?.pointer) {
@@ -139,6 +145,7 @@ export function useWindowInteraction(
     const bounds = runtime.windows.getState().byId[id]?.bounds
     if (
       runtime.windows.getState().byId[id]?.status !== 'visible' ||
+      runtime.windows.getState().byId[id]?.placement.kind === 'maximized' ||
       !bounds ||
       session.current ||
       window.innerWidth <= 600

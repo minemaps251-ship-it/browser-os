@@ -59,6 +59,7 @@ export function createRuntime(deps: Dependencies) {
         processId,
         title: manifest.name,
         status: 'visible',
+        placement: { kind: 'normal' },
         bounds: initialBounds(
           manifest.window.defaultSize,
           deps.getUsableArea(),
@@ -141,6 +142,22 @@ export function createRuntime(deps: Dependencies) {
       const window = windows.read.getState().byId[id]
       const manifest = window && deps.registry.get(window.appId)
       if (manifest) windows.resize(id, bounds, manifest.window.minSize, area)
+    },
+    maximizeWindow: (id: WindowId) => {
+      if (!disposed) windows.maximize(id, deps.getUsableArea())
+    },
+    restoreWindowBounds: (id: WindowId) => {
+      if (disposed) return
+      const window = windows.read.getState().byId[id]
+      const manifest = window && deps.registry.get(window.appId)
+      if (manifest)
+        windows.restoreBounds(id, manifest.window.minSize, deps.getUsableArea())
+    },
+    fitWindowToArea: (id: WindowId, area: Size) => {
+      if (disposed) return
+      const window = windows.read.getState().byId[id]
+      const manifest = window && deps.registry.get(window.appId)
+      if (manifest) windows.fitToArea(id, manifest.window.minSize, area)
     },
     requestCloseWindow,
     listProcesses: () => [...processes.values()],

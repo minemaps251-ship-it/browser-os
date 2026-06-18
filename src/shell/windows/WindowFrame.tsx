@@ -34,6 +34,11 @@ export function WindowFrame({ id }: { id: WindowId }) {
   }, [focused, frame, id, window?.status])
   if (!window) return null
   const content = runtime.getContent(window.appId)
+  const maximized = window.placement.kind === 'maximized'
+  function toggleMaximize() {
+    if (maximized) runtime.restoreWindowBounds(id)
+    else runtime.maximizeWindow(id)
+  }
   const action = interaction.kind === 'resize' ? 'Resize' : 'Move'
   return (
     <section
@@ -41,6 +46,7 @@ export function WindowFrame({ id }: { id: WindowId }) {
       ref={frame}
       hidden={window.status === 'minimized'}
       inert={window.status === 'minimized'}
+      data-maximized={maximized}
       tabIndex={-1}
       aria-label={`${window.title} window`}
       className={`${styles.frame}${focused ? ` ${styles.focused}` : ''}`}
@@ -73,6 +79,8 @@ export function WindowFrame({ id }: { id: WindowId }) {
         {window.status === 'visible' && (
           <WindowMenu
             title={window.title}
+            maximized={maximized}
+            onMaximize={toggleMaximize}
             buttonRef={actions}
             onMove={() => interaction.startKeyboard('move')}
             onResize={() => interaction.startKeyboard('resize')}
@@ -86,6 +94,21 @@ export function WindowFrame({ id }: { id: WindowId }) {
           <span className={styles.controlDot} aria-hidden="true">
             <svg viewBox="0 0 12 12">
               <path d="M3 6h6" />
+            </svg>
+          </span>
+        </button>
+        <button
+          className={styles.maximize}
+          aria-label={`${maximized ? 'Restore size of' : 'Maximize'} ${window.title}`}
+          onClick={toggleMaximize}
+        >
+          <span className={styles.controlDot} aria-hidden="true">
+            <svg viewBox="0 0 12 12">
+              {maximized ? (
+                <path d="M3 5V3h6v6H7M3 5h4v4H3z" />
+              ) : (
+                <path d="M3 3h6v6H3z" />
+              )}
             </svg>
           </span>
         </button>
@@ -164,19 +187,20 @@ export function WindowFrame({ id }: { id: WindowId }) {
           <button onClick={() => interaction.finish(false)}>Cancel</button>
         </Dialog>
       )}
-      {resizeEdges.map((edge) => (
-        <div
-          key={edge}
-          aria-hidden="true"
-          data-resize-edge={edge}
-          className={styles.resizeHandle}
-          onPointerDown={(event) => interaction.pointerDown(event, edge)}
-          onPointerMove={interaction.pointerMove}
-          onPointerUp={interaction.pointerUp}
-          onPointerCancel={interaction.pointerCancel}
-          onLostPointerCapture={interaction.pointerCancel}
-        />
-      ))}
+      {!maximized &&
+        resizeEdges.map((edge) => (
+          <div
+            key={edge}
+            aria-hidden="true"
+            data-resize-edge={edge}
+            className={styles.resizeHandle}
+            onPointerDown={(event) => interaction.pointerDown(event, edge)}
+            onPointerMove={interaction.pointerMove}
+            onPointerUp={interaction.pointerUp}
+            onPointerCancel={interaction.pointerCancel}
+            onLostPointerCapture={interaction.pointerCancel}
+          />
+        ))}
       <div data-window-content className={styles.content}>
         <AppBoundary onCrash={() => runtime.reportCrash(id)}>
           {content ? (

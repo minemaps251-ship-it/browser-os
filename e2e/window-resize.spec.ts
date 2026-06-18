@@ -117,6 +117,10 @@ test('supports roving menu navigation and keyboard resize with focus return', as
     page.getByRole('menuitem', { name: 'Move window' }),
   ).toBeFocused()
   await page.keyboard.press('End')
+  await expect(
+    page.getByRole('menuitem', { name: 'Maximize window' }),
+  ).toBeFocused()
+  await page.keyboard.press('ArrowUp')
   await page.keyboard.press('Enter')
   const dialog = page.getByRole('dialog', { name: 'Resize About BrowserOS' })
   await expect(
@@ -129,6 +133,10 @@ test('supports roving menu navigation and keyboard resize with focus return', as
   await page.keyboard.press('Escape')
   await expect(frame).toHaveCSS('width', '560px')
   await expect(actions).toBeFocused()
+  await page.keyboard.press('ArrowUp')
+  await expect(
+    page.getByRole('menuitem', { name: 'Maximize window' }),
+  ).toBeFocused()
   await page.keyboard.press('ArrowUp')
   await expect(
     page.getByRole('menuitem', { name: 'Resize window' }),

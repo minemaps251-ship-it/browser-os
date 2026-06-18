@@ -15,6 +15,7 @@ const window: WindowInstance = {
   processId: 'p' as ProcessId,
   title: 'First',
   status: 'visible',
+  placement: { kind: 'normal' },
   bounds: { x: 24, y: 24, width: 300, height: 200 },
 }
 const area = { width: 800, height: 600 }
