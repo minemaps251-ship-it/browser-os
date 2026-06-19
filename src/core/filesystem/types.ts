@@ -43,6 +43,7 @@ export type VfsErrorCode =
   | 'NOT_FOUND'
   | 'NOT_DIRECTORY'
   | 'NOT_FILE'
+  | 'NOT_EMPTY'
   | 'INVALID_NAME'
   | 'INVALID_PATH'
   | 'INVALID_CONTENT'
@@ -82,4 +83,8 @@ export interface WriteReceipt {
   readonly contentRevision: number
   readonly operationId: string
   readonly originRequestId: string
+}
+
+export interface RemoveOptions {
+  readonly recursive: boolean
 }

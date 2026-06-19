@@ -375,6 +375,86 @@ export function createMemoryVfsRepository(options: {
       : failure('NOT_FOUND', 'Node does not exist.', id)
   }
   const repository: VfsRepository = {
+    async remove(id, removeOptions) {
+      if (!removeOptions || typeof removeOptions.recursive !== 'boolean')
+        return failure(
+          'INVALID_REQUEST',
+          'An explicit recursive option is required.',
+          id,
+        )
+      const node = state.nodes.get(id)
+      if (!node) return failure('NOT_FOUND', 'Node does not exist.', id)
+      if (node.parentId === null || node.metadata.protected || inSystem(id))
+        return failure('PROTECTED', 'Node cannot be removed.', id)
+      if (
+        node.kind === 'directory' &&
+        !removeOptions.recursive &&
+        state.children.get(id)?.size
+      )
+        return failure('NOT_EMPTY', 'Directory is not empty.', id)
+      const removed: FileSystemNode[] = []
+      const pending = [node]
+      let removedBytes = 0
+      while (pending.length) {
+        const current = pending.pop()!
+        if (current.metadata.protected)
+          return failure(
+            'PROTECTED',
+            'Subtree contains a protected node.',
+            current.id,
+          )
+        removed.push(current)
+        if (current.kind === 'file') removedBytes += current.byteLength
+        else {
+          for (const childId of state.children.get(current.id)?.values() ?? [])
+            pending.push(state.nodes.get(childId)!)
+        }
+      }
+      const parent = state.nodes.get(node.parentId)!
+      if (parent.metadataRevision >= Number.MAX_SAFE_INTEGER)
+        return failure(
+          'CORRUPT_DATA',
+          'Parent revision cannot advance.',
+          parent.id,
+        )
+      try {
+        const now = options.now()
+        if (!Number.isFinite(now))
+          return failure('CORRUPT_DATA', 'Timestamp is invalid.', id)
+        const nextNodes = new Map(state.nodes)
+        const nextContents = new Map(state.contents)
+        const nextChildren = new Map(state.children)
+        for (const current of removed) {
+          nextNodes.delete(current.id)
+          nextChildren.delete(current.id)
+          if (current.kind === 'file') nextContents.delete(current.contentId)
+        }
+        const siblings = new Map(state.children.get(node.parentId))
+        siblings.delete(node.name)
+        nextChildren.set(node.parentId, siblings)
+        nextNodes.set(
+          parent.id,
+          Object.freeze({
+            ...parent,
+            metadataRevision: parent.metadataRevision + 1,
+            updatedAt: now,
+          }),
+        )
+        state = {
+          nodes: nextNodes,
+          contents: nextContents,
+          children: nextChildren,
+          totalBytes: state.totalBytes - removedBytes,
+        }
+        return { ok: true, value: undefined }
+      } catch {
+        return failure(
+          'STORAGE_UNAVAILABLE',
+          'Could not prepare the memory removal.',
+          id,
+        )
+      }
+    },
     async copyFile(id, destination, newName) {
       const source = state.nodes.get(id)
       if (!source) return failure('NOT_FOUND', 'Source does not exist.', id)

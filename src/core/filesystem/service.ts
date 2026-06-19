@@ -1,9 +1,17 @@
 import { parsePath } from './paths'
 import type { VfsRepository } from './repository'
-import type { NodeId, VfsResult, FileContent, WriteOptions } from './types'
+import type {
+  NodeId,
+  VfsResult,
+  FileContent,
+  WriteOptions,
+  RemoveOptions,
+} from './types'
 
 export function createVfsService(repository: VfsRepository) {
   return {
+    remove: (id: NodeId, options: RemoveOptions) =>
+      repository.remove(id, options),
     copyFile: (id: NodeId, destination: NodeId, newName?: string) =>
       repository.copyFile(id, destination, newName),
     rename: (id: NodeId, name: string) => repository.rename(id, name),

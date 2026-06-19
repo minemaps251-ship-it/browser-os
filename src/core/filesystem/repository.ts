@@ -7,6 +7,7 @@ import type {
   DocumentRead,
   WriteOptions,
   WriteReceipt,
+  RemoveOptions,
 } from './types'
 
 /** Each operation observes one committed tree, including the entire path traversal. */
@@ -18,6 +19,7 @@ export interface VfsReadRepository {
 }
 
 export interface VfsRepository extends VfsReadRepository {
+  remove(id: NodeId, options: RemoveOptions): Promise<VfsResult<void>>
   copyFile(
     id: NodeId,
     destination: NodeId,
