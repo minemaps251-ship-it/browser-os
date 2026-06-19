@@ -1,9 +1,14 @@
 import { parsePath } from './paths'
-import type { VfsReadRepository } from './repository'
-import type { NodeId, VfsResult } from './types'
+import type { VfsRepository } from './repository'
+import type { NodeId, VfsResult, FileContent } from './types'
 
-export function createVfsService(repository: VfsReadRepository) {
+export function createVfsService(repository: VfsRepository) {
   return {
+    createDirectory: (parentId: NodeId, name: string) =>
+      repository.createDirectory(parentId, name),
+    createFile: (parentId: NodeId, name: string, content: FileContent) =>
+      repository.createFile(parentId, name, content),
+    readFile: (id: NodeId) => repository.readDocument(id),
     stat: (id: NodeId) => repository.getNode(id),
     listDirectory: (id: NodeId) => repository.getChildren(id),
     pathOf: (id: NodeId) => repository.pathOf(id),

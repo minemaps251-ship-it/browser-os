@@ -1,19 +1,30 @@
 import { normalizeName } from './names'
-import { ROOT_NODE_ID } from './policy'
+import { ROOT_NODE_ID, VFS_LIMITS } from './policy'
 import { createInitialNodes } from './seed'
-import type { VfsReadRepository } from './repository'
-import type { FileSystemNode, NodeId, VfsErrorCode, VfsResult } from './types'
+import { prepareTextContent } from './content'
+import type { VfsRepository } from './repository'
+import type {
+  FileSystemNode,
+  NodeId,
+  VfsErrorCode,
+  VfsResult,
+  ContentId,
+  FileContent,
+  StoredFileContent,
+} from './types'
 
 function failure(code: VfsErrorCode, message: string, nodeId?: NodeId) {
   return { ok: false as const, error: { code, message, nodeId } }
 }
 
-/** Private immutable metadata snapshot. Write transactions will extend this adapter later. */
+/** Prepare a new snapshot, then publish metadata/content/indexes/counters together. */
 export function createMemoryVfsRepository(options: {
   now: () => number
   createNodeId: () => NodeId
+  createContentId: () => ContentId
+  initialContents?: readonly StoredFileContent[]
   initialNodes?: readonly FileSystemNode[]
-}): VfsResult<VfsReadRepository> {
+}): VfsResult<VfsRepository> {
   const input =
     options.initialNodes ??
     createInitialNodes(options.now(), options.createNodeId)
@@ -92,13 +103,191 @@ export function createMemoryVfsRepository(options: {
     if (!current)
       return failure('CORRUPT_DATA', 'Node is disconnected from root.', node.id)
   }
+  const contents = new Map<ContentId, FileContent>()
+  for (const record of options.initialContents ?? []) {
+    const prepared = prepareTextContent(record.content)
+    if (!record.id || contents.has(record.id) || !prepared.ok)
+      return failure('CORRUPT_DATA', 'Invalid or duplicate file content.')
+    contents.set(record.id, prepared.value.content)
+  }
+  let totalBytes = 0
+  const referenced = new Set<ContentId>()
+  for (const node of nodes.values()) {
+    if (node.kind !== 'file') continue
+    const content = contents.get(node.contentId)
+    if (!content || referenced.has(node.contentId))
+      return failure('CORRUPT_DATA', 'Missing or shared file content.', node.id)
+    const prepared = prepareTextContent(content)
+    if (
+      !prepared.ok ||
+      prepared.value.byteLength !== node.byteLength ||
+      node.byteLength > VFS_LIMITS.maxFileBytes
+    )
+      return failure(
+        'CORRUPT_DATA',
+        'File size does not match valid content.',
+        node.id,
+      )
+    referenced.add(node.contentId)
+    totalBytes += node.byteLength
+  }
+  if (
+    referenced.size !== contents.size ||
+    totalBytes > VFS_LIMITS.maxTotalBytes ||
+    nodes.size > VFS_LIMITS.maxNodes
+  )
+    return failure('CORRUPT_DATA', 'Orphan content or dataset exceeds limits.')
+  let state = { nodes, children, contents, totalBytes }
+
+  function create(
+    parentId: NodeId,
+    name: string,
+    content?: FileContent,
+  ): VfsResult<NodeId> {
+    const parent = state.nodes.get(parentId)
+    if (!parent) return failure('NOT_FOUND', 'Parent does not exist.', parentId)
+    if (parent.kind !== 'directory')
+      return failure('NOT_DIRECTORY', 'Parent is not a directory.', parentId)
+    const systemId = state.children.get(ROOT_NODE_ID)?.get('system')
+    let ancestor: FileSystemNode | undefined = parent
+    while (ancestor) {
+      if (ancestor.id === systemId)
+        return failure(
+          'PROTECTED',
+          'The system directory is read-only.',
+          parentId,
+        )
+      ancestor =
+        ancestor.parentId === null
+          ? undefined
+          : state.nodes.get(ancestor.parentId)
+    }
+    const normalized = normalizeName(name)
+    if (!normalized.ok) return normalized
+    const siblings = state.children.get(parentId)
+    if (siblings?.has(normalized.value))
+      return failure(
+        'ALREADY_EXISTS',
+        'A sibling with that name already exists.',
+        parentId,
+      )
+    if (state.nodes.size >= VFS_LIMITS.maxNodes)
+      return failure('TOO_LARGE', 'Node count limit reached.')
+    const prepared =
+      content === undefined ? undefined : prepareTextContent(content)
+    if (prepared && !prepared.ok) return prepared
+    const text = prepared?.ok ? prepared.value : undefined
+    const bytes = text?.byteLength ?? 0
+    if (
+      bytes > VFS_LIMITS.maxFileBytes ||
+      state.totalBytes + bytes > VFS_LIMITS.maxTotalBytes
+    )
+      return failure('TOO_LARGE', 'File or total text size limit exceeded.')
+    if (parent.metadataRevision >= Number.MAX_SAFE_INTEGER)
+      return failure(
+        'CORRUPT_DATA',
+        'Parent revision cannot advance.',
+        parentId,
+      )
+    // Dependencies are invoked before staging/publishing, so failure cannot leak a node.
+    try {
+      const id = options.createNodeId()
+      const contentId = text ? options.createContentId() : undefined
+      const now = options.now()
+      if (
+        !id ||
+        state.nodes.has(id) ||
+        !Number.isFinite(now) ||
+        (text && (!contentId || state.contents.has(contentId)))
+      )
+        return failure(
+          'CORRUPT_DATA',
+          'Generated identity or timestamp is invalid.',
+        )
+      const base = {
+        id,
+        parentId,
+        name: normalized.value,
+        createdAt: now,
+        updatedAt: now,
+        metadataRevision: 1,
+        metadata: Object.freeze({ protected: false }),
+      }
+      const node: FileSystemNode =
+        text && contentId
+          ? Object.freeze({
+              ...base,
+              kind: 'file',
+              mime: 'text/plain',
+              byteLength: bytes,
+              contentId,
+              contentRevision: 1,
+            })
+          : Object.freeze({ ...base, kind: 'directory' })
+      const nextNodes = new Map(state.nodes)
+      nextNodes.set(id, node)
+      nextNodes.set(
+        parentId,
+        Object.freeze({
+          ...parent,
+          updatedAt: now,
+          metadataRevision: parent.metadataRevision + 1,
+        }),
+      )
+      const nextChildren = new Map(state.children)
+      const nextSiblings = new Map(siblings)
+      nextSiblings.set(normalized.value, id)
+      nextChildren.set(parentId, nextSiblings)
+      const nextContents = new Map(state.contents)
+      if (text && contentId) nextContents.set(contentId, text.content)
+      state = {
+        nodes: nextNodes,
+        children: nextChildren,
+        contents: nextContents,
+        totalBytes: state.totalBytes + bytes,
+      }
+      return { ok: true, value: id }
+    } catch {
+      return failure(
+        'STORAGE_UNAVAILABLE',
+        'Could not prepare the memory transaction.',
+      )
+    }
+  }
+
   function getNode(id: NodeId): VfsResult<FileSystemNode> {
-    const node = nodes.get(id)
+    const node = state.nodes.get(id)
     return node
       ? { ok: true, value: node }
       : failure('NOT_FOUND', 'Node does not exist.', id)
   }
-  const repository: VfsReadRepository = {
+  const repository: VfsRepository = {
+    async createDirectory(parentId, name) {
+      return create(parentId, name)
+    },
+    async createFile(parentId, name, content) {
+      if (!content)
+        return failure('INVALID_CONTENT', 'File content is required.')
+      return create(parentId, name, content)
+    },
+    async readDocument(id) {
+      const result = getNode(id)
+      if (!result.ok) return result
+      const node = result.value
+      if (node.kind !== 'file')
+        return failure('NOT_FILE', 'Node is not a file.', id)
+      const content = state.contents.get(node.contentId)
+      if (!content)
+        return failure('CORRUPT_DATA', 'File content is missing.', id)
+      return {
+        ok: true,
+        value: Object.freeze({
+          node,
+          content,
+          contentRevision: node.contentRevision,
+        }),
+      }
+    },
     async getNode(id) {
       return getNode(id)
     },
@@ -107,8 +296,9 @@ export function createMemoryVfsRepository(options: {
       if (!result.ok) return result
       if (result.value.kind !== 'directory')
         return failure('NOT_DIRECTORY', 'Node is not a directory.', id)
-      const entries = Array.from(children.get(id)?.values() ?? [], (child) =>
-        nodes.get(child)!,
+      const entries = Array.from(
+        state.children.get(id)?.values() ?? [],
+        (child) => state.nodes.get(child)!,
       )
       // Stable case-sensitive UTF-16 ordering (no locale settings).
       entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
@@ -136,7 +326,7 @@ export function createMemoryVfsRepository(options: {
             ? current.id
             : segment.kind === 'parent'
               ? (current.parentId ?? ROOT_NODE_ID)
-              : children.get(current.id)?.get(segment.name)
+              : state.children.get(current.id)?.get(segment.name)
         if (!nextId)
           return failure(
             'NOT_FOUND',
@@ -162,7 +352,7 @@ export function createMemoryVfsRepository(options: {
       let current: FileSystemNode = result.value
       while (current.parentId !== null) {
         names.push(current.name)
-        current = nodes.get(current.parentId)!
+        current = state.nodes.get(current.parentId)!
       }
       return { ok: true, value: '/' + names.reverse().join('/') }
     },

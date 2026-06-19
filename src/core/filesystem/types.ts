@@ -45,6 +45,7 @@ export type VfsErrorCode =
   | 'NOT_FILE'
   | 'INVALID_NAME'
   | 'INVALID_PATH'
+  | 'INVALID_CONTENT'
   | 'ALREADY_EXISTS'
   | 'CYCLE'
   | 'PROTECTED'
@@ -66,3 +67,8 @@ export interface VfsError {
 export type VfsResult<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: VfsError }
+
+export interface StoredFileContent {
+  readonly id: ContentId
+  readonly content: FileContent
+}

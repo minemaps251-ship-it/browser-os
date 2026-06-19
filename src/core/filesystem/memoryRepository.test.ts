@@ -24,8 +24,19 @@ function setup(nodes?: readonly FileSystemNode[]) {
   const repository = value(
     createMemoryVfsRepository({
       now: () => 123,
+      createContentId: () => 'new-content' as ContentId,
       createNodeId: () => `node-${++next}` as NodeId,
       initialNodes: nodes,
+      initialContents: nodes
+        ?.filter((n) => n.kind === 'file')
+        .map((n) => ({
+          id: n.contentId,
+          content: {
+            kind: 'text' as const,
+            encoding: 'utf-8' as const,
+            text: 'abc',
+          },
+        })),
     }),
   )
   return { repository, vfs: createVfsService(repository) }
@@ -78,9 +89,16 @@ it('does not run seed or dependencies when existing nodes are supplied', async (
   const repository = value(
     createMemoryVfsRepository({
       initialNodes: existing.nodes,
+      initialContents: [
+        {
+          id: existing.file.contentId,
+          content: { kind: 'text', encoding: 'utf-8', text: 'abc' },
+        },
+      ],
       now: () => {
         throw new Error('must not seed')
       },
+      createContentId: () => 'new-content' as ContentId,
       createNodeId: () => {
         throw new Error('must not seed')
       },
@@ -197,6 +215,7 @@ it('lists siblings deterministically and supports special object-key names', asy
   const extra = ['__proto__', 'constructor', 'A', 'a'].map((name, index) => ({
     ...file,
     id: `extra-${index}` as NodeId,
+    contentId: `extra-content-${index}` as ContentId,
     name,
   }))
   const { vfs } = setup([...nodes, ...extra])
@@ -266,6 +285,7 @@ it.each([
     createMemoryVfsRepository({
       initialNodes: input,
       now: () => 123,
+      createContentId: () => 'new-content' as ContentId,
       createNodeId: () => 'unused' as NodeId,
     }),
   ).toMatchObject({ ok: false, error: { code: 'CORRUPT_DATA' } })
@@ -274,6 +294,7 @@ it('rejects duplicate generated IDs before a new repository becomes available', 
   expect(
     createMemoryVfsRepository({
       now: () => 123,
+      createContentId: () => 'new-content' as ContentId,
       createNodeId: () => ROOT_NODE_ID,
     }),
   ).toMatchObject({ ok: false, error: { code: 'CORRUPT_DATA' } })

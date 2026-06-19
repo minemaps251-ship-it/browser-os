@@ -1,5 +1,11 @@
 import type { ParsedPath } from './paths'
-import type { FileSystemNode, NodeId, VfsResult } from './types'
+import type {
+  FileSystemNode,
+  NodeId,
+  VfsResult,
+  FileContent,
+  DocumentRead,
+} from './types'
 
 /** Each operation observes one committed tree, including the entire path traversal. */
 export interface VfsReadRepository {
@@ -7,4 +13,14 @@ export interface VfsReadRepository {
   getChildren(id: NodeId): Promise<VfsResult<readonly FileSystemNode[]>>
   resolvePath(path: ParsedPath, cwd: NodeId): Promise<VfsResult<NodeId>>
   pathOf(id: NodeId): Promise<VfsResult<string>>
+}
+
+export interface VfsRepository extends VfsReadRepository {
+  readDocument(id: NodeId): Promise<VfsResult<DocumentRead>>
+  createDirectory(parentId: NodeId, name: string): Promise<VfsResult<NodeId>>
+  createFile(
+    parentId: NodeId,
+    name: string,
+    content: FileContent,
+  ): Promise<VfsResult<NodeId>>
 }
