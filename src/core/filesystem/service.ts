@@ -4,6 +4,8 @@ import type { NodeId, VfsResult, FileContent, WriteOptions } from './types'
 
 export function createVfsService(repository: VfsRepository) {
   return {
+    copyFile: (id: NodeId, destination: NodeId, newName?: string) =>
+      repository.copyFile(id, destination, newName),
     rename: (id: NodeId, name: string) => repository.rename(id, name),
     move: (id: NodeId, destination: NodeId, newName?: string) =>
       repository.move(id, destination, newName),

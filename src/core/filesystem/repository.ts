@@ -18,6 +18,11 @@ export interface VfsReadRepository {
 }
 
 export interface VfsRepository extends VfsReadRepository {
+  copyFile(
+    id: NodeId,
+    destination: NodeId,
+    newName?: string,
+  ): Promise<VfsResult<NodeId>>
   rename(id: NodeId, name: string): Promise<VfsResult<void>>
   move(
     id: NodeId,

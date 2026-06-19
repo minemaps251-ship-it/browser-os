@@ -157,6 +157,7 @@ export function createMemoryVfsRepository(options: {
     parentId: NodeId,
     name: string,
     content?: FileContent,
+    mime = 'text/plain',
   ): VfsResult<NodeId> {
     const parent = state.nodes.get(parentId)
     if (!parent) return failure('NOT_FOUND', 'Parent does not exist.', parentId)
@@ -224,7 +225,7 @@ export function createMemoryVfsRepository(options: {
           ? Object.freeze({
               ...base,
               kind: 'file',
-              mime: 'text/plain',
+              mime,
               byteLength: bytes,
               contentId,
               contentRevision: 1,
@@ -374,6 +375,17 @@ export function createMemoryVfsRepository(options: {
       : failure('NOT_FOUND', 'Node does not exist.', id)
   }
   const repository: VfsRepository = {
+    async copyFile(id, destination, newName) {
+      const source = state.nodes.get(id)
+      if (!source) return failure('NOT_FOUND', 'Source does not exist.', id)
+      if (source.kind !== 'file')
+        return failure('NOT_FILE', 'Source is not a file.', id)
+      const content = state.contents.get(source.contentId)
+      if (!content)
+        return failure('CORRUPT_DATA', 'Source content is missing.', id)
+      // No await: source snapshot and destination commit share one mutation turn.
+      return create(destination, newName ?? source.name, content, source.mime)
+    },
     async rename(id, name) {
       return relocate(id, undefined, name)
     },
