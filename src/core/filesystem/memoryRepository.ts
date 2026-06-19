@@ -261,6 +261,112 @@ export function createMemoryVfsRepository(options: {
     }
   }
 
+  function relocate(
+    id: NodeId,
+    destination?: NodeId,
+    newName?: string,
+  ): VfsResult<void> {
+    const node = state.nodes.get(id)
+    if (!node) return failure('NOT_FOUND', 'Node does not exist.', id)
+    if (node.parentId === null || node.metadata.protected || inSystem(id))
+      return failure('PROTECTED', 'Node cannot be renamed or moved.', id)
+    const parentId = destination ?? node.parentId
+    const parent = state.nodes.get(parentId)
+    if (!parent)
+      return failure('NOT_FOUND', 'Destination does not exist.', parentId)
+    if (parent.kind !== 'directory')
+      return failure(
+        'NOT_DIRECTORY',
+        'Destination is not a directory.',
+        parentId,
+      )
+    if (inSystem(parentId))
+      return failure(
+        'PROTECTED',
+        'The system directory is read-only.',
+        parentId,
+      )
+    const name = normalizeName(newName ?? node.name)
+    if (!name.ok) return name
+    if (node.kind === 'directory') {
+      let ancestor: FileSystemNode | undefined = parent
+      while (ancestor) {
+        if (ancestor.id === id)
+          return failure(
+            'CYCLE',
+            'Directory cannot move into itself or a descendant.',
+            id,
+          )
+        ancestor =
+          ancestor.parentId === null
+            ? undefined
+            : state.nodes.get(ancestor.parentId)
+      }
+    }
+    const sibling = state.children.get(parentId)?.get(name.value)
+    if (sibling !== undefined && sibling !== id)
+      return failure(
+        'ALREADY_EXISTS',
+        'Destination already contains that name.',
+        parentId,
+      )
+    if (parentId === node.parentId && name.value === node.name)
+      return { ok: true, value: undefined }
+    const affectedParents = new Set([node.parentId, parentId])
+    const affectedNodes = [
+      node,
+      ...Array.from(affectedParents, (parent) => state.nodes.get(parent)!),
+    ]
+    if (
+      affectedNodes.some(
+        (node) => node.metadataRevision >= Number.MAX_SAFE_INTEGER,
+      )
+    )
+      return failure('CORRUPT_DATA', 'Metadata revision cannot advance.', id)
+    try {
+      const now = options.now()
+      if (!Number.isFinite(now))
+        return failure('CORRUPT_DATA', 'Timestamp is invalid.', id)
+      const nextNodes = new Map(state.nodes)
+      nextNodes.set(
+        id,
+        Object.freeze({
+          ...node,
+          parentId,
+          name: name.value,
+          metadataRevision: node.metadataRevision + 1,
+          updatedAt: now,
+        }),
+      )
+      for (const parentId of affectedParents) {
+        const parent = state.nodes.get(parentId)!
+        nextNodes.set(
+          parentId,
+          Object.freeze({
+            ...parent,
+            metadataRevision: parent.metadataRevision + 1,
+            updatedAt: now,
+          }),
+        )
+      }
+      const nextChildren = new Map(state.children)
+      const oldSiblings = new Map(state.children.get(node.parentId))
+      oldSiblings.delete(node.name)
+      nextChildren.set(node.parentId, oldSiblings)
+      const newSiblings = new Map(nextChildren.get(parentId))
+      newSiblings.set(name.value, id)
+      nextChildren.set(parentId, newSiblings)
+      state = { ...state, nodes: nextNodes, children: nextChildren }
+      return { ok: true, value: undefined }
+    } catch {
+      return failure(
+        'STORAGE_UNAVAILABLE',
+        'Could not prepare the memory relocation.',
+        id,
+      )
+    }
+  }
+
   function getNode(id: NodeId): VfsResult<FileSystemNode> {
     const node = state.nodes.get(id)
     return node
@@ -268,6 +374,12 @@ export function createMemoryVfsRepository(options: {
       : failure('NOT_FOUND', 'Node does not exist.', id)
   }
   const repository: VfsRepository = {
+    async rename(id, name) {
+      return relocate(id, undefined, name)
+    },
+    async move(id, destination, newName) {
+      return relocate(id, destination, newName)
+    },
     async writeFile(id, content, writeOptions) {
       const node = state.nodes.get(id)
       if (!node) return failure('NOT_FOUND', 'File does not exist.', id)
