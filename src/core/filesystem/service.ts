@@ -6,10 +6,14 @@ import type {
   FileContent,
   WriteOptions,
   RemoveOptions,
+  VfsChangeScope,
+  VfsChangeListener,
 } from './types'
 
 export function createVfsService(repository: VfsRepository) {
   return {
+    subscribe: (scope: VfsChangeScope, listener: VfsChangeListener) =>
+      repository.subscribe(scope, listener),
     remove: (id: NodeId, options: RemoveOptions) =>
       repository.remove(id, options),
     copyFile: (id: NodeId, destination: NodeId, newName?: string) =>

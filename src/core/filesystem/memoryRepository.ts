@@ -1,3 +1,4 @@
+import { createVfsChangeDispatcher } from './changes'
 import { normalizeName } from './names'
 import { ROOT_NODE_ID, VFS_LIMITS } from './policy'
 import { createInitialNodes } from './seed'
@@ -11,6 +12,7 @@ import type {
   ContentId,
   FileContent,
   StoredFileContent,
+  VfsChange,
 } from './types'
 
 function failure(code: VfsErrorCode, message: string, nodeId?: NodeId) {
@@ -23,6 +25,7 @@ export function createMemoryVfsRepository(options: {
   createNodeId: () => NodeId
   createContentId: () => ContentId
   createOperationId: () => string
+  onListenerError?: (error: unknown) => void
   initialContents?: readonly StoredFileContent[]
   initialNodes?: readonly FileSystemNode[]
 }): VfsResult<VfsRepository> {
@@ -139,6 +142,39 @@ export function createMemoryVfsRepository(options: {
   )
     return failure('CORRUPT_DATA', 'Orphan content or dataset exceeds limits.')
   let state = { nodes, children, contents, totalBytes }
+  const changes = createVfsChangeDispatcher(options.onListenerError)
+  function prepareChange(
+    ids: Partial<
+      Pick<
+        VfsChange,
+        'metadataIds' | 'contentIds' | 'pathIds' | 'directoryIds' | 'removedIds'
+      >
+    >,
+    operationId = options.createOperationId(),
+    originRequestId = operationId,
+  ): VfsChange {
+    if (!operationId?.trim()) throw new Error('Invalid operation identity')
+    return Object.freeze({
+      operationId,
+      originRequestId,
+      metadataIds: Object.freeze([...new Set(ids.metadataIds ?? [])]),
+      contentIds: Object.freeze([...new Set(ids.contentIds ?? [])]),
+      pathIds: Object.freeze([...new Set(ids.pathIds ?? [])]),
+      directoryIds: Object.freeze([...new Set(ids.directoryIds ?? [])]),
+      removedIds: Object.freeze([...new Set(ids.removedIds ?? [])]),
+    })
+  }
+  function subtreeIds(id: NodeId): NodeId[] {
+    const result: NodeId[] = []
+    const pending = [id]
+    while (pending.length) {
+      const current = pending.pop()!
+      result.push(current)
+      for (const child of state.children.get(current)?.values() ?? [])
+        pending.push(child)
+    }
+    return result
+  }
 
   function inSystem(id: NodeId) {
     const systemId = state.children.get(ROOT_NODE_ID)?.get('system')
@@ -247,12 +283,19 @@ export function createMemoryVfsRepository(options: {
       nextChildren.set(parentId, nextSiblings)
       const nextContents = new Map(state.contents)
       if (text && contentId) nextContents.set(contentId, text.content)
+      const event = prepareChange({
+        metadataIds: [id, parentId],
+        contentIds: text ? [id] : [],
+        pathIds: [id],
+        directoryIds: [parentId],
+      })
       state = {
         nodes: nextNodes,
         children: nextChildren,
         contents: nextContents,
         totalBytes: state.totalBytes + bytes,
       }
+      changes.emit(event)
       return { ok: true, value: id }
     } catch {
       return failure(
@@ -357,7 +400,13 @@ export function createMemoryVfsRepository(options: {
       const newSiblings = new Map(nextChildren.get(parentId))
       newSiblings.set(name.value, id)
       nextChildren.set(parentId, newSiblings)
+      const event = prepareChange({
+        metadataIds: affectedNodes.map((node) => node.id),
+        pathIds: subtreeIds(id),
+        directoryIds: [...affectedParents],
+      })
       state = { ...state, nodes: nextNodes, children: nextChildren }
+      changes.emit(event)
       return { ok: true, value: undefined }
     } catch {
       return failure(
@@ -375,6 +424,7 @@ export function createMemoryVfsRepository(options: {
       : failure('NOT_FOUND', 'Node does not exist.', id)
   }
   const repository: VfsRepository = {
+    subscribe: changes.subscribe,
     async remove(id, removeOptions) {
       if (!removeOptions || typeof removeOptions.recursive !== 'boolean')
         return failure(
@@ -440,12 +490,18 @@ export function createMemoryVfsRepository(options: {
             updatedAt: now,
           }),
         )
+        const event = prepareChange({
+          metadataIds: [parent.id],
+          removedIds: removed.map((node) => node.id),
+          directoryIds: [parent.id],
+        })
         state = {
           nodes: nextNodes,
           contents: nextContents,
           children: nextChildren,
           totalBytes: state.totalBytes - removedBytes,
         }
+        changes.emit(event)
         return { ok: true, value: undefined }
       } catch {
         return failure(
@@ -544,12 +600,22 @@ export function createMemoryVfsRepository(options: {
           operationId,
           originRequestId: writeOptions.requestId,
         })
+        const event = prepareChange(
+          {
+            metadataIds: [id],
+            contentIds: [id],
+            directoryIds: [node.parentId],
+          },
+          operationId,
+          writeOptions.requestId,
+        )
         state = {
           ...state,
           nodes: nextNodes,
           contents: nextContents,
           totalBytes,
         }
+        changes.emit(event)
         return { ok: true, value: receipt }
       } catch {
         return failure(

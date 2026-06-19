@@ -61,7 +61,7 @@ it('updates text/bytes/revisions atomically with receipt and stable identities',
   const after = value(await vfs.readFile(id))
   expect(receipt).toEqual({
     contentRevision: 2,
-    operationId: 'op-1',
+    operationId: 'op-2',
     originRequestId: 'save-1',
   })
   expect(after.node).toMatchObject({

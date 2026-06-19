@@ -88,3 +88,19 @@ export interface WriteReceipt {
 export interface RemoveOptions {
   readonly recursive: boolean
 }
+
+/** IDs refer to nodes, including contentIds (not content-record identities). */
+export interface VfsChange {
+  readonly operationId: string
+  readonly originRequestId: string
+  readonly metadataIds: readonly NodeId[]
+  readonly contentIds: readonly NodeId[]
+  readonly pathIds: readonly NodeId[]
+  readonly directoryIds: readonly NodeId[]
+  readonly removedIds: readonly NodeId[]
+}
+export type VfsChangeScope =
+  | { readonly kind: 'all' }
+  | { readonly kind: 'node'; readonly id: NodeId }
+  | { readonly kind: 'directory'; readonly id: NodeId }
+export type VfsChangeListener = (event: VfsChange) => void | Promise<void>

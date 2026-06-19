@@ -8,6 +8,8 @@ import type {
   WriteOptions,
   WriteReceipt,
   RemoveOptions,
+  VfsChangeScope,
+  VfsChangeListener,
 } from './types'
 
 /** Each operation observes one committed tree, including the entire path traversal. */
@@ -19,6 +21,7 @@ export interface VfsReadRepository {
 }
 
 export interface VfsRepository extends VfsReadRepository {
+  subscribe(scope: VfsChangeScope, listener: VfsChangeListener): () => void
   remove(id: NodeId, options: RemoveOptions): Promise<VfsResult<void>>
   copyFile(
     id: NodeId,
