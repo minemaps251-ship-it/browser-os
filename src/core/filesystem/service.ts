@@ -1,6 +1,6 @@
 import { parsePath } from './paths'
 import type { VfsRepository } from './repository'
-import type { NodeId, VfsResult, FileContent } from './types'
+import type { NodeId, VfsResult, FileContent, WriteOptions } from './types'
 
 export function createVfsService(repository: VfsRepository) {
   return {
@@ -8,6 +8,8 @@ export function createVfsService(repository: VfsRepository) {
       repository.createDirectory(parentId, name),
     createFile: (parentId: NodeId, name: string, content: FileContent) =>
       repository.createFile(parentId, name, content),
+    writeFile: (id: NodeId, content: FileContent, options: WriteOptions) =>
+      repository.writeFile(id, content, options),
     readFile: (id: NodeId) => repository.readDocument(id),
     stat: (id: NodeId) => repository.getNode(id),
     listDirectory: (id: NodeId) => repository.getChildren(id),

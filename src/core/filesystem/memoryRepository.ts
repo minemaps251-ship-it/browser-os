@@ -22,6 +22,7 @@ export function createMemoryVfsRepository(options: {
   now: () => number
   createNodeId: () => NodeId
   createContentId: () => ContentId
+  createOperationId: () => string
   initialContents?: readonly StoredFileContent[]
   initialNodes?: readonly FileSystemNode[]
 }): VfsResult<VfsRepository> {
@@ -139,6 +140,19 @@ export function createMemoryVfsRepository(options: {
     return failure('CORRUPT_DATA', 'Orphan content or dataset exceeds limits.')
   let state = { nodes, children, contents, totalBytes }
 
+  function inSystem(id: NodeId) {
+    const systemId = state.children.get(ROOT_NODE_ID)?.get('system')
+    let ancestor = state.nodes.get(id)
+    while (ancestor) {
+      if (ancestor.id === systemId) return true
+      ancestor =
+        ancestor.parentId === null
+          ? undefined
+          : state.nodes.get(ancestor.parentId)
+    }
+    return false
+  }
+
   function create(
     parentId: NodeId,
     name: string,
@@ -148,20 +162,12 @@ export function createMemoryVfsRepository(options: {
     if (!parent) return failure('NOT_FOUND', 'Parent does not exist.', parentId)
     if (parent.kind !== 'directory')
       return failure('NOT_DIRECTORY', 'Parent is not a directory.', parentId)
-    const systemId = state.children.get(ROOT_NODE_ID)?.get('system')
-    let ancestor: FileSystemNode | undefined = parent
-    while (ancestor) {
-      if (ancestor.id === systemId)
-        return failure(
-          'PROTECTED',
-          'The system directory is read-only.',
-          parentId,
-        )
-      ancestor =
-        ancestor.parentId === null
-          ? undefined
-          : state.nodes.get(ancestor.parentId)
-    }
+    if (inSystem(parentId))
+      return failure(
+        'PROTECTED',
+        'The system directory is read-only.',
+        parentId,
+      )
     const normalized = normalizeName(name)
     if (!normalized.ok) return normalized
     const siblings = state.children.get(parentId)
@@ -262,6 +268,93 @@ export function createMemoryVfsRepository(options: {
       : failure('NOT_FOUND', 'Node does not exist.', id)
   }
   const repository: VfsRepository = {
+    async writeFile(id, content, writeOptions) {
+      const node = state.nodes.get(id)
+      if (!node) return failure('NOT_FOUND', 'File does not exist.', id)
+      if (node.kind !== 'file')
+        return failure('NOT_FILE', 'Node is not a file.', id)
+      if (node.metadata.protected || inSystem(id))
+        return failure('PROTECTED', 'File is read-only.', id)
+      if (
+        !writeOptions ||
+        !Number.isSafeInteger(writeOptions.expectedContentRevision) ||
+        writeOptions.expectedContentRevision < 1 ||
+        !writeOptions.requestId?.trim()
+      )
+        return failure(
+          'INVALID_REQUEST',
+          'A positive expected revision and non-empty request ID are required.',
+          id,
+        )
+      if (node.contentRevision !== writeOptions.expectedContentRevision)
+        return {
+          ok: false,
+          error: {
+            code: 'CONFLICT',
+            message: 'File changed since it was read.',
+            nodeId: id,
+            expectedRevision: writeOptions.expectedContentRevision,
+            actualRevision: node.contentRevision,
+          },
+        }
+      if (
+        node.contentRevision >= Number.MAX_SAFE_INTEGER ||
+        node.metadataRevision >= Number.MAX_SAFE_INTEGER
+      )
+        return failure('CORRUPT_DATA', 'File revision cannot advance.', id)
+      const prepared = prepareTextContent(content)
+      if (!prepared.ok) return prepared
+      const totalBytes =
+        state.totalBytes - node.byteLength + prepared.value.byteLength
+      if (
+        prepared.value.byteLength > VFS_LIMITS.maxFileBytes ||
+        totalBytes > VFS_LIMITS.maxTotalBytes
+      )
+        return failure(
+          'TOO_LARGE',
+          'File or total text size limit exceeded.',
+          id,
+        )
+      try {
+        const operationId = options.createOperationId()
+        const now = options.now()
+        if (!operationId?.trim() || !Number.isFinite(now))
+          return failure(
+            'CORRUPT_DATA',
+            'Operation identity or timestamp is invalid.',
+            id,
+          )
+        const nextNode = Object.freeze({
+          ...node,
+          byteLength: prepared.value.byteLength,
+          updatedAt: now,
+          metadataRevision: node.metadataRevision + 1,
+          contentRevision: node.contentRevision + 1,
+        })
+        const nextNodes = new Map(state.nodes)
+        nextNodes.set(id, nextNode)
+        const nextContents = new Map(state.contents)
+        nextContents.set(node.contentId, prepared.value.content)
+        const receipt = Object.freeze({
+          contentRevision: nextNode.contentRevision,
+          operationId,
+          originRequestId: writeOptions.requestId,
+        })
+        state = {
+          ...state,
+          nodes: nextNodes,
+          contents: nextContents,
+          totalBytes,
+        }
+        return { ok: true, value: receipt }
+      } catch {
+        return failure(
+          'STORAGE_UNAVAILABLE',
+          'Could not prepare the memory write.',
+          id,
+        )
+      }
+    },
     async createDirectory(parentId, name) {
       return create(parentId, name)
     },

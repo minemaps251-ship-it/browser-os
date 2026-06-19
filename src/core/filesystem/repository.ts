@@ -5,6 +5,8 @@ import type {
   VfsResult,
   FileContent,
   DocumentRead,
+  WriteOptions,
+  WriteReceipt,
 } from './types'
 
 /** Each operation observes one committed tree, including the entire path traversal. */
@@ -16,6 +18,11 @@ export interface VfsReadRepository {
 }
 
 export interface VfsRepository extends VfsReadRepository {
+  writeFile(
+    id: NodeId,
+    content: FileContent,
+    options: WriteOptions,
+  ): Promise<VfsResult<WriteReceipt>>
   readDocument(id: NodeId): Promise<VfsResult<DocumentRead>>
   createDirectory(parentId: NodeId, name: string): Promise<VfsResult<NodeId>>
   createFile(

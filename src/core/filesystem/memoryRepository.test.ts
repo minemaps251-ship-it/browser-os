@@ -24,6 +24,7 @@ function setup(nodes?: readonly FileSystemNode[]) {
   const repository = value(
     createMemoryVfsRepository({
       now: () => 123,
+      createOperationId: () => 'fixture-operation',
       createContentId: () => 'new-content' as ContentId,
       createNodeId: () => `node-${++next}` as NodeId,
       initialNodes: nodes,
@@ -98,6 +99,7 @@ it('does not run seed or dependencies when existing nodes are supplied', async (
       now: () => {
         throw new Error('must not seed')
       },
+      createOperationId: () => 'fixture-operation',
       createContentId: () => 'new-content' as ContentId,
       createNodeId: () => {
         throw new Error('must not seed')
@@ -285,6 +287,7 @@ it.each([
     createMemoryVfsRepository({
       initialNodes: input,
       now: () => 123,
+      createOperationId: () => 'fixture-operation',
       createContentId: () => 'new-content' as ContentId,
       createNodeId: () => 'unused' as NodeId,
     }),
@@ -294,6 +297,7 @@ it('rejects duplicate generated IDs before a new repository becomes available', 
   expect(
     createMemoryVfsRepository({
       now: () => 123,
+      createOperationId: () => 'fixture-operation',
       createContentId: () => 'new-content' as ContentId,
       createNodeId: () => ROOT_NODE_ID,
     }),

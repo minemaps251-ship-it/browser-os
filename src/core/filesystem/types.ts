@@ -46,6 +46,7 @@ export type VfsErrorCode =
   | 'INVALID_NAME'
   | 'INVALID_PATH'
   | 'INVALID_CONTENT'
+  | 'INVALID_REQUEST'
   | 'ALREADY_EXISTS'
   | 'CYCLE'
   | 'PROTECTED'
@@ -71,4 +72,14 @@ export type VfsResult<T> =
 export interface StoredFileContent {
   readonly id: ContentId
   readonly content: FileContent
+}
+
+export interface WriteOptions {
+  readonly expectedContentRevision: number
+  readonly requestId: string
+}
+export interface WriteReceipt {
+  readonly contentRevision: number
+  readonly operationId: string
+  readonly originRequestId: string
 }

@@ -40,6 +40,7 @@ function setup(
     initialContents,
     now: () => 2,
     createNodeId: () => `created-${++n}` as NodeId,
+    createOperationId: () => 'fixture-operation',
     createContentId: () => `content-${++c}` as ContentId,
     ...dependencies,
   }
@@ -316,6 +317,7 @@ it.each(['missing', 'orphan', 'mismatch', 'duplicate'] as const)(
         initialNodes: nodes,
         initialContents: records,
         createNodeId: () => 'unused' as NodeId,
+        createOperationId: () => 'fixture-operation',
         createContentId: () => 'unused' as ContentId,
         now: () => 1,
       }),
