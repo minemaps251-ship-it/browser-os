@@ -14,6 +14,7 @@ import type {
 
 /** Each operation observes one committed tree, including the entire path traversal. */
 export interface VfsReadRepository {
+  readDocument(id: NodeId): Promise<VfsResult<DocumentRead>>
   getNode(id: NodeId): Promise<VfsResult<FileSystemNode>>
   getChildren(id: NodeId): Promise<VfsResult<readonly FileSystemNode[]>>
   resolvePath(path: ParsedPath, cwd: NodeId): Promise<VfsResult<NodeId>>
@@ -39,7 +40,6 @@ export interface VfsRepository extends VfsReadRepository {
     content: FileContent,
     options: WriteOptions,
   ): Promise<VfsResult<WriteReceipt>>
-  readDocument(id: NodeId): Promise<VfsResult<DocumentRead>>
   createDirectory(parentId: NodeId, name: string): Promise<VfsResult<NodeId>>
   createFile(
     parentId: NodeId,

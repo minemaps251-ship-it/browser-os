@@ -343,3 +343,5 @@ declare global {
   }
 }
 window.idbSpike = spike
+
+import './readHarness'

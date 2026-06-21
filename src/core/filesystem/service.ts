@@ -1,5 +1,5 @@
 import { parsePath } from './paths'
-import type { VfsRepository } from './repository'
+import type { VfsRepository, VfsReadRepository } from './repository'
 import type {
   NodeId,
   VfsResult,
@@ -12,6 +12,7 @@ import type {
 
 export function createVfsService(repository: VfsRepository) {
   return {
+    ...createVfsReadService(repository),
     subscribe: (scope: VfsChangeScope, listener: VfsChangeListener) =>
       repository.subscribe(scope, listener),
     remove: (id: NodeId, options: RemoveOptions) =>
@@ -27,6 +28,12 @@ export function createVfsService(repository: VfsRepository) {
       repository.createFile(parentId, name, content),
     writeFile: (id: NodeId, content: FileContent, options: WriteOptions) =>
       repository.writeFile(id, content, options),
+  }
+}
+export type VirtualFileSystem = ReturnType<typeof createVfsService>
+
+export function createVfsReadService(repository: VfsReadRepository) {
+  return {
     readFile: (id: NodeId) => repository.readDocument(id),
     stat: (id: NodeId) => repository.getNode(id),
     listDirectory: (id: NodeId) => repository.getChildren(id),
@@ -41,4 +48,3 @@ export function createVfsService(repository: VfsRepository) {
     },
   }
 }
-export type VirtualFileSystem = ReturnType<typeof createVfsService>
