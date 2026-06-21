@@ -24,6 +24,8 @@
     "vite.config.ts",
     "vitest.config.ts",
     "playwright.config.ts",
+    "playwright.persistence.config.ts",
     "e2e"
-  ]
+  ],
+  "exclude": ["e2e/persistence"]
 }
