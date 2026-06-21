@@ -345,3 +345,5 @@ declare global {
 window.idbSpike = spike
 
 import './readHarness'
+
+import './createHarness'

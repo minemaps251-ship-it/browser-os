@@ -1,3 +1,4 @@
+import { createTransactionReader } from './transactionReader'
 import type { VfsReadRepository } from '../filesystem/repository'
 import { ROOT_NODE_ID, VFS_LIMITS } from '../filesystem/policy'
 import type { FileSystemNode, NodeId, VfsResult } from '../filesystem/types'
@@ -53,52 +54,13 @@ async function read<T>(
     }
   }
 }
-function reader(transaction: IDBTransaction) {
-  const store = transaction.objectStore(STORES.nodes)
-  const cache = new Map<NodeId, FileSystemNode>() // Only this transaction, no shared cache.
-  async function get(id: NodeId): Promise<VfsResult<FileSystemNode>> {
-    const cached = cache.get(id)
-    if (cached) return { ok: true, value: cached }
-    const raw = await requestResult<unknown>(store.get(id))
-    if (raw === undefined)
-      return id === ROOT_NODE_ID
-        ? corrupt('Filesystem root is missing.', id)
-        : missing(id)
-    const result = decodeNode(raw, id)
-    if (result.ok) cache.set(id, result.value)
-    return result
-  }
-  async function ancestors(
-    node: FileSystemNode,
-  ): Promise<VfsResult<readonly FileSystemNode[]>> {
-    const chain: FileSystemNode[] = []
-    const seen = new Set<NodeId>()
-    let current = node
-    while (true) {
-      if (seen.has(current.id) || seen.size >= VFS_LIMITS.maxNodes)
-        return corrupt('Parent cycle or depth limit exceeded.', node.id)
-      seen.add(current.id)
-      chain.push(current)
-      if (current.id === ROOT_NODE_ID) return { ok: true, value: chain }
-      const parent = await get(current.parentId!)
-      if (!parent.ok)
-        return parent.error.code === 'NOT_FOUND'
-          ? corrupt('Parent directory is missing.', current.id)
-          : parent
-      if (parent.value.kind !== 'directory')
-        return corrupt('Parent is not a directory.', current.id)
-      current = parent.value
-    }
-  }
-  return { store, get, ancestors }
-}
 export function createIndexedDbReadRepository(
   connection: DatabaseConnection,
 ): VfsReadRepository {
   return {
     getNode: (id) =>
       read(connection, [STORES.nodes], async (transaction) => {
-        const query = reader(transaction)
+        const query = createTransactionReader(transaction)
         const node = await query.get(id)
         if (!node.ok) return node
         const chain = await query.ancestors(node.value)
@@ -106,7 +68,7 @@ export function createIndexedDbReadRepository(
       }),
     getChildren: (id) =>
       read(connection, [STORES.nodes], async (transaction) => {
-        const query = reader(transaction)
+        const query = createTransactionReader(transaction)
         const node = await query.get(id)
         if (!node.ok) return node
         if (node.value.kind !== 'directory') return notDirectory(id)
@@ -140,7 +102,7 @@ export function createIndexedDbReadRepository(
       }),
     pathOf: (id) =>
       read(connection, [STORES.nodes], async (transaction) => {
-        const query = reader(transaction)
+        const query = createTransactionReader(transaction)
         const node = await query.get(id)
         if (!node.ok) return node
         const chain = await query.ancestors(node.value)
@@ -158,7 +120,7 @@ export function createIndexedDbReadRepository(
       }),
     resolvePath: (path, cwd) =>
       read(connection, [STORES.nodes], async (transaction) => {
-        const query = reader(transaction)
+        const query = createTransactionReader(transaction)
         let result = await query.get(
           path.kind === 'absolute' ? ROOT_NODE_ID : cwd,
         )
@@ -197,7 +159,7 @@ export function createIndexedDbReadRepository(
       }),
     readDocument: (id) =>
       read(connection, [STORES.nodes, STORES.contents], async (transaction) => {
-        const query = reader(transaction)
+        const query = createTransactionReader(transaction)
         const result = await query.get(id)
         if (!result.ok) return result
         if (result.value.kind !== 'file')
