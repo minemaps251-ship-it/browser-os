@@ -353,3 +353,5 @@ import './writeHarness'
 import './relocateHarness'
 
 import './copyHarness'
+
+import './removeHarness'

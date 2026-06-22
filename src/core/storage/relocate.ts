@@ -1,5 +1,6 @@
+import { readSubtree } from './subtree'
 import { normalizeName } from '../filesystem/names'
-import { ROOT_NODE_ID, VFS_LIMITS } from '../filesystem/policy'
+import { ROOT_NODE_ID } from '../filesystem/policy'
 import type { VfsRepository } from '../filesystem/repository'
 import type {
   FileSystemNode,
@@ -24,38 +25,6 @@ function inSystem(chain: readonly FileSystemNode[]) {
   return chain.some(
     (node) => node.parentId === ROOT_NODE_ID && node.name === 'system',
   )
-}
-/** Indexed, bounded metadata traversal; descendants are invalidated, never rewritten. */
-async function subtree(
-  store: IDBObjectStore,
-  node: FileSystemNode,
-): Promise<VfsResult<readonly NodeId[]>> {
-  const ids: NodeId[] = [],
-    seen = new Set<NodeId>(),
-    pending = [node]
-  while (pending.length) {
-    const current = pending.pop()!
-    if (seen.has(current.id) || seen.size >= VFS_LIMITS.maxNodes)
-      return corrupt('Subtree cycle or node limit exceeded.', node.id)
-    seen.add(current.id)
-    ids.push(current.id)
-    if (current.kind === 'file') continue
-    const records = await requestResult<unknown[]>(
-      store.index(INDEXES.parent).getAll(current.id, VFS_LIMITS.maxNodes + 1),
-    )
-    if (records.length + seen.size + pending.length > VFS_LIMITS.maxNodes)
-      return corrupt('Subtree exceeds node limit.', node.id)
-    const names = new Set<string>()
-    for (const raw of records) {
-      const child = decodeNode(raw)
-      if (!child.ok) return child
-      if (child.value.parentId !== current.id || names.has(child.value.name))
-        return corrupt('Subtree listing is inconsistent.', current.id)
-      names.add(child.value.name)
-      pending.push(child.value)
-    }
-  }
-  return { ok: true, value: ids }
 }
 export function createIndexedDbRelocation(
   connection: DatabaseConnection,
@@ -147,7 +116,7 @@ export function createIndexedDbRelocation(
         )
       )
         return await reject(corrupt('Metadata revision cannot advance.', id))
-      const paths = await subtree(query.store, node)
+      const paths = await readSubtree(query.store, node)
       if (!paths.ok) return await reject(paths)
       const now = options.now(),
         operationId = options.createOperationId()
@@ -163,7 +132,7 @@ export function createIndexedDbRelocation(
         operationId,
         originRequestId: operationId,
         metadataIds: Object.freeze([id, ...parents.map((parent) => parent.id)]),
-        pathIds: Object.freeze([...paths.value]),
+        pathIds: Object.freeze(paths.value.map((node) => node.id)),
         directoryIds: Object.freeze(parents.map((parent) => parent.id)),
         contentIds: Object.freeze([]),
         removedIds: Object.freeze([]),

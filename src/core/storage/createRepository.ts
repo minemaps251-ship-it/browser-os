@@ -1,6 +1,7 @@
+import { createIndexedDbRemove } from './remove'
 import { createIndexedDbRelocation } from './relocate'
 import { createIndexedDbWriteFile } from './writeFile'
-import type { VfsReadRepository, VfsRepository } from '../filesystem/repository'
+import type { VfsRepository } from '../filesystem/repository'
 import type {
   ContentId,
   FileContent,
@@ -22,17 +23,7 @@ import { INDEXES, STORES } from './schema'
 import { requestResult, transactionDone } from './requests'
 import type { DatabaseConnection } from './types'
 
-export type VfsCreateRepository = VfsReadRepository &
-  Pick<
-    VfsRepository,
-    | 'createDirectory'
-    | 'createFile'
-    | 'writeFile'
-    | 'rename'
-    | 'move'
-    | 'copyFile'
-    | 'subscribe'
-  >
+export type VfsCreateRepository = VfsRepository
 interface CreateOptions {
   now: () => number
   createNodeId: () => NodeId
@@ -241,6 +232,7 @@ export function createIndexedDbCreateRepository(
   return {
     ...createIndexedDbReadRepository(connection),
     subscribe: changes.subscribe,
+    remove: createIndexedDbRemove(connection, options, changes.emit),
     ...createIndexedDbRelocation(connection, options, changes.emit),
     writeFile: createIndexedDbWriteFile(connection, options, changes.emit),
     copyFile: (id, destination, newName) =>
