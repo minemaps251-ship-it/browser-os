@@ -355,3 +355,5 @@ declare global {
   }
 }
 window.idbCreate = api
+
+export { open, repo, snapshot, text, value }

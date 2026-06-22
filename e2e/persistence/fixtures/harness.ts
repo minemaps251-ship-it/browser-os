@@ -347,3 +347,5 @@ window.idbSpike = spike
 import './readHarness'
 
 import './createHarness'
+
+import './writeHarness'

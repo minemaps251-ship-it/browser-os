@@ -1,3 +1,4 @@
+import { createIndexedDbWriteFile } from './writeFile'
 import type { VfsReadRepository, VfsRepository } from '../filesystem/repository'
 import type {
   ContentId,
@@ -21,7 +22,10 @@ import { requestResult, transactionDone } from './requests'
 import type { DatabaseConnection } from './types'
 
 export type VfsCreateRepository = VfsReadRepository &
-  Pick<VfsRepository, 'createDirectory' | 'createFile' | 'subscribe'>
+  Pick<
+    VfsRepository,
+    'createDirectory' | 'createFile' | 'writeFile' | 'subscribe'
+  >
 interface CreateOptions {
   now: () => number
   createNodeId: () => NodeId
@@ -206,6 +210,7 @@ export function createIndexedDbCreateRepository(
   return {
     ...createIndexedDbReadRepository(connection),
     subscribe: changes.subscribe,
+    writeFile: createIndexedDbWriteFile(connection, options, changes.emit),
     createDirectory: (parent, name) => create(parent, name),
     createFile: (parent, name, content) =>
       content
