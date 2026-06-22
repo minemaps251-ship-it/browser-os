@@ -349,3 +349,5 @@ import './readHarness'
 import './createHarness'
 
 import './writeHarness'
+
+import './relocateHarness'

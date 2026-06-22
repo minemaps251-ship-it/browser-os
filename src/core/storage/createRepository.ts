@@ -1,3 +1,4 @@
+import { createIndexedDbRelocation } from './relocate'
 import { createIndexedDbWriteFile } from './writeFile'
 import type { VfsReadRepository, VfsRepository } from '../filesystem/repository'
 import type {
@@ -24,7 +25,12 @@ import type { DatabaseConnection } from './types'
 export type VfsCreateRepository = VfsReadRepository &
   Pick<
     VfsRepository,
-    'createDirectory' | 'createFile' | 'writeFile' | 'subscribe'
+    | 'createDirectory'
+    | 'createFile'
+    | 'writeFile'
+    | 'rename'
+    | 'move'
+    | 'subscribe'
   >
 interface CreateOptions {
   now: () => number
@@ -210,6 +216,7 @@ export function createIndexedDbCreateRepository(
   return {
     ...createIndexedDbReadRepository(connection),
     subscribe: changes.subscribe,
+    ...createIndexedDbRelocation(connection, options, changes.emit),
     writeFile: createIndexedDbWriteFile(connection, options, changes.emit),
     createDirectory: (parent, name) => create(parent, name),
     createFile: (parent, name, content) =>
