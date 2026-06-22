@@ -16,7 +16,7 @@ import { ROOT_NODE_ID, VFS_LIMITS } from '../filesystem/policy'
 import { createVfsChangeDispatcher } from '../filesystem/changes'
 import { createIndexedDbReadRepository } from './readRepository'
 import { createTransactionReader } from './transactionReader'
-import { corrupt } from './records'
+import { corrupt, decodeContent } from './records'
 import { decodeTotals } from './totals'
 import { INDEXES, STORES } from './schema'
 import { requestResult, transactionDone } from './requests'
@@ -30,6 +30,7 @@ export type VfsCreateRepository = VfsReadRepository &
     | 'writeFile'
     | 'rename'
     | 'move'
+    | 'copyFile'
     | 'subscribe'
   >
 interface CreateOptions {
@@ -53,14 +54,13 @@ export function createIndexedDbCreateRepository(
   const changes = createVfsChangeDispatcher(options.onListenerError)
   async function create(
     parentId: NodeId,
-    name: string,
+    name: string | undefined,
     content?: FileContent,
+    sourceId?: NodeId,
   ): Promise<VfsResult<NodeId>> {
-    const normalized = normalizeName(name)
-    const prepared =
+    let normalized = normalizeName(name ?? '')
+    let prepared =
       content === undefined ? undefined : prepareTextContent(content)
-    const text = prepared?.ok ? prepared.value : undefined
-    const bytes = text?.byteLength ?? 0
     let transaction: IDBTransaction | undefined
     let completion: Promise<unknown> | undefined
     try {
@@ -79,6 +79,31 @@ export function createIndexedDbCreateRepository(
         return result
       }
       const query = createTransactionReader(tx)
+      let mime = 'text/plain'
+      if (sourceId !== undefined) {
+        const source = await query.get(sourceId)
+        if (!source.ok) return await reject(source)
+        if (source.value.kind !== 'file')
+          return await reject(failure('NOT_FILE', 'Source is not a file.'))
+        const chain = await query.ancestors(source.value)
+        if (!chain.ok) return await reject(chain)
+        const raw = await requestResult<unknown>(
+          tx.objectStore(STORES.contents).get(source.value.contentId),
+        )
+        const decoded = decodeContent(raw, source.value)
+        if (!decoded.ok) return await reject(decoded)
+        prepared = {
+          ok: true,
+          value: {
+            content: decoded.value,
+            byteLength: source.value.byteLength,
+          },
+        }
+        normalized = normalizeName(name ?? source.value.name)
+        mime = source.value.mime
+      }
+      const text = prepared?.ok ? prepared.value : undefined
+      const bytes = text?.byteLength ?? 0
       const parent = await query.get(parentId)
       if (!parent.ok) return await reject(parent)
       if (parent.value.kind !== 'directory')
@@ -162,7 +187,7 @@ export function createIndexedDbCreateRepository(
               contentId,
               contentRevision: 1,
               byteLength: bytes,
-              mime: 'text/plain',
+              mime,
             }
           : { ...base, kind: 'directory' }
       const event: VfsChange = Object.freeze({
@@ -218,6 +243,8 @@ export function createIndexedDbCreateRepository(
     subscribe: changes.subscribe,
     ...createIndexedDbRelocation(connection, options, changes.emit),
     writeFile: createIndexedDbWriteFile(connection, options, changes.emit),
+    copyFile: (id, destination, newName) =>
+      create(destination, newName, undefined, id),
     createDirectory: (parent, name) => create(parent, name),
     createFile: (parent, name, content) =>
       content
