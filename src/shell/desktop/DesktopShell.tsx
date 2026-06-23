@@ -36,6 +36,11 @@ export function DesktopShell() {
         </div>
         <DesktopClock />
       </header>
+      {runtime.storageMode === 'temporary' && (
+        <p className={styles.status} role="status">
+          Temporary workspace — files will be lost when you reload.
+        </p>
+      )}
       {pending && (
         <p className={styles.status} role="status">
           Opening application…

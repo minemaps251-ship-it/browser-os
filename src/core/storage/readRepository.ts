@@ -207,3 +207,47 @@ export function validateStoredMetadata(
     return validateMetadataSnapshot(nodes, schema, totals)
   })
 }
+
+/** Audit references and text in one snapshot before exposing a writable VFS. */
+export function validateStoredVfs(
+  connection: DatabaseConnection,
+): Promise<VfsResult<void>> {
+  return read(
+    connection,
+    [STORES.nodes, STORES.contents, STORES.meta],
+    async (transaction) => {
+      const meta = transaction.objectStore(STORES.meta)
+      const contents = transaction.objectStore(STORES.contents)
+      const [nodes, schema, totals, count] = await Promise.all([
+        requestResult<unknown[]>(
+          transaction
+            .objectStore(STORES.nodes)
+            .getAll(undefined, VFS_LIMITS.maxNodes + 1),
+        ),
+        requestResult<unknown>(meta.get('schema')),
+        requestResult<unknown>(meta.get('totals')),
+        requestResult(contents.count()),
+      ])
+      const valid = validateMetadataSnapshot(nodes, schema, totals)
+      if (!valid.ok) return valid
+      const files = []
+      for (const raw of nodes) {
+        const node = decodeNode(raw)
+        if (!node.ok) return node
+        if (node.value.kind === 'file') files.push(node.value)
+      }
+      if (count !== files.length)
+        return corrupt('File content references are inconsistent.')
+      const records = await Promise.all(
+        files.map((file) =>
+          requestResult<unknown>(contents.get(file.contentId)),
+        ),
+      )
+      for (let index = 0; index < files.length; index++) {
+        const content = decodeContent(records[index], files[index])
+        if (!content.ok) return content
+      }
+      return { ok: true, value: undefined }
+    },
+  )
+}

@@ -2,15 +2,16 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles/tokens.css'
 import './styles/global.css'
-import { BrowserOS } from './app/BrowserOS'
-import { createBrowserRuntime } from './app/createRuntime'
+import { BootScreen } from './app/BootScreen'
+import { createBootController } from './app/boot'
 
-const runtime = createBrowserRuntime()
+const controller = createBootController()
 const root = document.getElementById('root')
 if (!root) throw new Error('BrowserOS root element is missing')
 createRoot(root).render(
   <StrictMode>
-    <BrowserOS runtime={runtime} />
+    <BootScreen controller={controller} />
   </StrictMode>,
 )
-if (import.meta.hot) import.meta.hot.dispose(() => runtime.dispose())
+void controller.start()
+if (import.meta.hot) import.meta.hot.dispose(() => controller.dispose())

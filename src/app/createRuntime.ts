@@ -2,10 +2,12 @@ import { createElement, type ReactElement } from 'react'
 import { createRegistry } from '../core/applications/registry'
 import type { AppId, ProcessId, WindowId } from '../core/shared/ids'
 import { createRuntime } from '../core/runtime/service'
+import { temporaryWorkspace, type Workspace } from './workspace'
 import { builtInApps, type AppRegistration } from './builtInApps'
 
 export function createBrowserRuntime(
   registrations: readonly AppRegistration[] = builtInApps,
+  workspace: Workspace = temporaryWorkspace(),
 ) {
   const registry = createRegistry(registrations.map((entry) => entry.manifest))
   const entries = new Map(
@@ -39,6 +41,19 @@ export function createBrowserRuntime(
       console.error('Application cleanup failed', error)
     },
   })
-  return { ...runtime, getContent: (appId: AppId) => contents.get(appId) }
+  let disposed = false
+  return {
+    ...runtime,
+    vfs: workspace.vfs,
+    storageMode: workspace.mode,
+    getContent: (appId: AppId) => contents.get(appId),
+    dispose: () => {
+      if (disposed) return
+      disposed = true
+      runtime.dispose()
+      contents.clear()
+      workspace.dispose()
+    },
+  }
 }
 export type BrowserRuntime = ReturnType<typeof createBrowserRuntime>
