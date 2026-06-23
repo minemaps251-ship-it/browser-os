@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { createIndexedDbCreateRepository } from './createRepository'
+import { createIndexedDbVfsRepository } from './createRepository'
 import type { DatabaseConnection } from './types'
 import type { NodeId } from '../filesystem/types'
 it.each([
@@ -19,7 +19,7 @@ it.each([
     } as unknown as DatabaseConnection
     const createNodeId = vi.fn(),
       listener = vi.fn()
-    const repository = createIndexedDbCreateRepository(connection, {
+    const repository = createIndexedDbVfsRepository(connection, {
       now: () => 45,
       createNodeId,
       createContentId: vi.fn(),

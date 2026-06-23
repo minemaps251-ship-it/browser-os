@@ -1,5 +1,5 @@
 import { openDatabase } from '../../../src/core/storage/database'
-import { createIndexedDbCreateRepository } from '../../../src/core/storage/createRepository'
+import { createIndexedDbVfsRepository } from '../../../src/core/storage/createRepository'
 import { validateStoredMetadata } from '../../../src/core/storage/readRepository'
 import {
   requestResult,
@@ -30,11 +30,9 @@ const text = (text: string) => ({
 })
 function repo(
   connection: DatabaseConnection,
-  overrides: Partial<
-    Parameters<typeof createIndexedDbCreateRepository>[1]
-  > = {},
+  overrides: Partial<Parameters<typeof createIndexedDbVfsRepository>[1]> = {},
 ) {
-  return createIndexedDbCreateRepository(connection, {
+  return createIndexedDbVfsRepository(connection, {
     now: () => 42,
     createNodeId: () => crypto.randomUUID() as NodeId,
     createContentId: () => crypto.randomUUID() as ContentId,

@@ -5,7 +5,7 @@ import { validateStoredMetadata } from '../../../src/core/storage/readRepository
 import { decodeNode } from '../../../src/core/storage/records'
 import { transactionDone } from '../../../src/core/storage/requests'
 import { STORES } from '../../../src/core/storage/schema'
-import type { VfsCreateRepository } from '../../../src/core/storage/createRepository'
+import type { VfsRepository } from '../../../src/core/filesystem/repository'
 import type {
   ContentId,
   NodeId,
@@ -33,7 +33,7 @@ export type RelocateFailure =
   | 'abort'
   | 'quota'
   | 'closed'
-async function run(repository: VfsCreateRepository) {
+async function run(repository: VfsRepository) {
   const a = value(await repository.createDirectory(ROOT_NODE_ID, 'A'))
   const b = value(await repository.createDirectory(ROOT_NODE_ID, 'B'))
   const folder = value(await repository.createDirectory(a, 'folder'))

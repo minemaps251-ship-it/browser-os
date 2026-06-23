@@ -23,8 +23,7 @@ import { INDEXES, STORES } from './schema'
 import { requestResult, transactionDone } from './requests'
 import type { DatabaseConnection } from './types'
 
-export type VfsCreateRepository = VfsRepository
-interface CreateOptions {
+export interface IndexedDbVfsOptions {
   now: () => number
   createNodeId: () => NodeId
   createContentId: () => ContentId
@@ -38,10 +37,10 @@ function failure(
   return { ok: false, error: { code, message } }
 }
 /** Call validateStoredMetadata before enabling a writable runtime. No cross-connection event bus. */
-export function createIndexedDbCreateRepository(
+export function createIndexedDbVfsRepository(
   connection: DatabaseConnection,
-  options: CreateOptions,
-): VfsCreateRepository {
+  options: IndexedDbVfsOptions,
+): VfsRepository {
   const changes = createVfsChangeDispatcher(options.onListenerError)
   async function create(
     parentId: NodeId,

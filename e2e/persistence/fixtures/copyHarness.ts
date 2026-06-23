@@ -10,7 +10,7 @@ import type {
   NodeId,
   VfsChange,
 } from '../../../src/core/filesystem/types'
-import type { VfsCreateRepository } from '../../../src/core/storage/createRepository'
+import type { VfsRepository } from '../../../src/core/filesystem/repository'
 export type CopyFailure =
   | 'missing-source'
   | 'directory-source'
@@ -32,7 +32,7 @@ export type CopyFailure =
   | 'quota'
   | 'abort'
   | 'closed'
-async function workflow(repository: VfsCreateRepository) {
+async function workflow(repository: VfsRepository) {
   const folder = value(await repository.createDirectory(ROOT_NODE_ID, 'copies'))
   const source = value(
     await repository.createFile(ROOT_NODE_ID, 'Café.txt', text('Привет 🌍')),

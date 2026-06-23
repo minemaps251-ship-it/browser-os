@@ -355,3 +355,5 @@ import './relocateHarness'
 import './copyHarness'
 
 import './removeHarness'
+
+import './contractHarness'
