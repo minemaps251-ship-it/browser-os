@@ -18,6 +18,7 @@ const defaults = {
   createRuntime: (workspace: Workspace) =>
     createBrowserRuntime(undefined, workspace),
   temporary: temporaryWorkspace,
+  initializeSettings: (workspace: Workspace) => workspace.settings.load(),
 }
 /** Owns the startup attempt and resource lifetime, independently of React mounting. */
 export function createBootController(dependencies: typeof defaults = defaults) {
@@ -83,6 +84,21 @@ export function createBootController(dependencies: typeof defaults = defaults) {
           status: 'error',
           message:
             'Your saved workspace could not be verified. Saved data has been preserved. You can retry or use a temporary workspace.',
+        })
+        return
+      }
+      const settings = await dependencies.initializeSettings(workspace)
+      if (stopped || attempt !== generation) {
+        workspace.dispose()
+        return
+      }
+      if (!settings.ok || opened.value.closed) {
+        workspace.dispose()
+        pendingWorkspace = undefined
+        publish({
+          status: 'error',
+          message:
+            'Your workspace settings could not be loaded. Saved data has been preserved. Please retry.',
         })
         return
       }

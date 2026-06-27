@@ -152,3 +152,9 @@
     color: CanvasText;
   }
 }
+.systemControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}

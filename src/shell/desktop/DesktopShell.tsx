@@ -5,6 +5,7 @@ import type { AppId } from '../../core/shared/ids'
 import { WindowLayer } from '../windows/WindowLayer'
 import { Taskbar } from '../taskbar/Taskbar'
 import { focusWindowElement } from '../windows/focus'
+import { ThemeControl } from './ThemeControl'
 import { DesktopClock } from './DesktopClock'
 import { DesktopWallpaper } from './DesktopWallpaper'
 
@@ -34,7 +35,10 @@ export function DesktopShell() {
           <h1>BrowserOS</h1>
           <span className={styles.location}>Desktop</span>
         </div>
-        <DesktopClock />
+        <div className={styles.systemControls}>
+          <ThemeControl settings={runtime.settings} />
+          <DesktopClock />
+        </div>
       </header>
       {runtime.storageMode === 'temporary' && (
         <p className={styles.status} role="status">

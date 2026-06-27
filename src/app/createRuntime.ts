@@ -45,6 +45,7 @@ export function createBrowserRuntime(
   return {
     ...runtime,
     vfs: workspace.vfs,
+    settings: workspace.settings,
     storageMode: workspace.mode,
     getContent: (appId: AppId) => contents.get(appId),
     dispose: () => {

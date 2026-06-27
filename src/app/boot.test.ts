@@ -17,6 +17,10 @@ function fixture() {
     validate: vi.fn(async () => ({ ok: true as const, value: undefined })),
     createRuntime: vi.fn(() => runtime),
     temporary: vi.fn(temporaryWorkspace),
+    initializeSettings: vi.fn(async () => ({
+      ok: true as const,
+      value: undefined,
+    })),
   }
   return { connection, close, runtime, dispose, dependencies }
 }
@@ -110,4 +114,17 @@ it('the runtime owns its single VFS resource and closes it once', () => {
   runtime.dispose()
   runtime.dispose()
   expect(close).toHaveBeenCalledOnce()
+})
+
+it('preserves data and closes the resource when settings cannot be loaded', async () => {
+  const f = fixture()
+  f.dependencies.initializeSettings.mockRejectedValueOnce(
+    new Error('Settings unavailable'),
+  )
+  const boot = createBootController(f.dependencies)
+  await boot.start()
+  expect(boot.getSnapshot().status).toBe('error')
+  expect(f.close).toHaveBeenCalledOnce()
+  expect(f.dependencies.createRuntime).not.toHaveBeenCalled()
+  boot.dispose()
 })

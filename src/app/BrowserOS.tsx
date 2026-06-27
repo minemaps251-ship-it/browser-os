@@ -2,6 +2,7 @@ import styles from './BrowserOS.module.css'
 import { AppBoundary } from './AppBoundary'
 import { RuntimeProvider } from './RuntimeProvider'
 import type { BrowserRuntime } from './createRuntime'
+import { ThemeAppearance } from './ThemeAppearance'
 import { DesktopShell } from '../shell/desktop/DesktopShell'
 
 export function BrowserOS({ runtime }: { runtime: BrowserRuntime }) {
@@ -19,6 +20,7 @@ export function BrowserOS({ runtime }: { runtime: BrowserRuntime }) {
       }
     >
       <RuntimeProvider runtime={runtime}>
+        <ThemeAppearance settings={runtime.settings} />
         <DesktopShell />
       </RuntimeProvider>
     </AppBoundary>

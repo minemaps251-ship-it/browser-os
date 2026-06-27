@@ -5,6 +5,11 @@ import './styles/global.css'
 import { BootScreen } from './app/BootScreen'
 import { createBootController } from './app/boot'
 
+document.documentElement.dataset.theme = window.matchMedia(
+  '(prefers-color-scheme: dark)',
+).matches
+  ? 'dark'
+  : 'light'
 const controller = createBootController()
 const root = document.getElementById('root')
 if (!root) throw new Error('BrowserOS root element is missing')
