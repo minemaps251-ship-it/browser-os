@@ -8,6 +8,7 @@ import {
 export interface SettingsSnapshot {
   readonly theme: ThemePreference
   readonly saving: boolean
+  readonly loading: boolean
   readonly warning: string | null
   readonly error: string | null
 }
@@ -19,12 +20,19 @@ export function createSettingsService(
   let snapshot: SettingsSnapshot = Object.freeze({
     theme: 'system',
     saving: false,
+    loading: false,
     warning: null,
     error: null,
   })
   let disposed = false
   let busy = false
   const listeners = new Set<() => void>()
+  const idleWaiters = new Set<() => void>()
+  const finish = () => {
+    busy = false
+    for (const resolve of idleWaiters) resolve()
+    idleWaiters.clear()
+  }
   const publish = (next: SettingsSnapshot) => {
     if (disposed) return
     snapshot = Object.freeze(next)
@@ -48,30 +56,49 @@ export function createSettingsService(
         listeners.delete(listener)
       }
     },
+    whenIdle: (signal?: AbortSignal) => {
+      if (!busy || disposed || signal?.aborted) return Promise.resolve()
+      return new Promise<void>((resolve) => {
+        const complete = () => {
+          idleWaiters.delete(complete)
+          signal?.removeEventListener('abort', complete)
+          resolve()
+        }
+        idleWaiters.add(complete)
+        signal?.addEventListener('abort', complete, { once: true })
+      })
+    },
     load: async (): Promise<SettingsResult<void>> => {
       if (disposed)
         return settingsFailure('DISPOSED', 'Settings have been closed.')
       if (busy) return settingsFailure('BUSY', 'Settings are being updated.')
       busy = true
+      publish({ ...snapshot, loading: true, error: null })
       try {
         const result = await repository.readTheme()
         if (disposed)
           return settingsFailure('DISPOSED', 'Settings have been closed.')
-        if (!result.ok && result.error.code !== 'CORRUPT_DATA') return result
+        if (!result.ok && result.error.code !== 'CORRUPT_DATA') {
+          publish({ ...snapshot, loading: false })
+          return result
+        }
         publish({
           theme: result.ok ? result.value : 'system',
           saving: false,
+          loading: false,
           warning: result.ok ? null : result.error.message,
           error: null,
         })
         return { ok: true, value: undefined }
       } catch {
-        return settingsFailure(
+        const result = settingsFailure(
           'STORAGE_UNAVAILABLE',
           'Settings could not be loaded.',
         )
+        publish({ ...snapshot, loading: false })
+        return result
       } finally {
-        busy = false
+        finish()
       }
     },
     setTheme: async (theme: ThemePreference): Promise<SettingsResult<void>> => {
@@ -90,7 +117,13 @@ export function createSettingsService(
           return settingsFailure('DISPOSED', 'Settings have been closed.')
         publish(
           result.ok
-            ? { theme, saving: false, warning: null, error: null }
+            ? {
+                theme,
+                saving: false,
+                loading: false,
+                warning: null,
+                error: null,
+              }
             : { ...snapshot, saving: false, error: result.error.message },
         )
         return result
@@ -102,12 +135,13 @@ export function createSettingsService(
         publish({ ...snapshot, saving: false, error: result.error.message })
         return result
       } finally {
-        busy = false
+        finish()
       }
     },
     dispose: () => {
       disposed = true
       listeners.clear()
+      finish()
     },
   }
 }

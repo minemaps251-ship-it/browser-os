@@ -171,3 +171,30 @@ it('isolates listener errors from committed updates and subsequent writes', asyn
   expect((await settings.setTheme('light')).ok).toBe(true)
   settings.dispose()
 })
+
+it('blocks updates during a read and does not apply a late read after dispose', async () => {
+  const repository = createMemorySettingsRepository()
+  let finish!: (result: SettingsResult<'dark'>) => void
+  vi.spyOn(repository, 'readTheme').mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve
+      }),
+  )
+  const settings = createSettingsService(repository)
+  const loading = settings.load()
+  expect(settings.getSnapshot().loading).toBe(true)
+  expect(await settings.setTheme('light')).toMatchObject({
+    ok: false,
+    error: { code: 'BUSY' },
+  })
+  const idle = settings.whenIdle()
+  settings.dispose()
+  await idle
+  finish({ ok: true, value: 'dark' })
+  expect(await loading).toMatchObject({
+    ok: false,
+    error: { code: 'DISPOSED' },
+  })
+  expect(settings.getSnapshot().theme).toBe('system')
+})

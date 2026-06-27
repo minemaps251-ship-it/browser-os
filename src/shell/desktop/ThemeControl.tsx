@@ -13,7 +13,7 @@ export function ThemeControl({ settings }: { settings: SettingsService }) {
         aria-label="Appearance"
         className={styles.select}
         value={snapshot.theme}
-        disabled={snapshot.saving}
+        disabled={snapshot.saving || snapshot.loading}
         aria-describedby={
           snapshot.error || snapshot.warning ? 'appearance-message' : undefined
         }

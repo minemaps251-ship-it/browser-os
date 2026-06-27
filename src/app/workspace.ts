@@ -1,4 +1,9 @@
 import {
+  createRefreshService,
+  type RefreshService,
+} from '../core/refresh/service'
+import { validateStoredMetadata } from '../core/storage/readRepository'
+import {
   createSettingsService,
   type SettingsService,
 } from '../core/settings/service'
@@ -19,6 +24,7 @@ const options = {
 export interface Workspace {
   readonly vfs: ReturnType<typeof createVfsService>
   readonly settings: SettingsService
+  readonly refresh: RefreshService
   readonly mode: 'persistent' | 'temporary'
   dispose(): void
 }
@@ -26,11 +32,17 @@ export function persistentWorkspace(connection: DatabaseConnection): Workspace {
   const settings = createSettingsService(
     createIndexedDbSettingsRepository(connection),
   )
+  const refresh = createRefreshService({
+    settings,
+    validate: () => validateStoredMetadata(connection),
+  })
   return {
+    refresh,
     vfs: createVfsService(createIndexedDbVfsRepository(connection, options)),
     settings,
     mode: 'persistent',
     dispose: () => {
+      refresh.dispose()
       settings.dispose()
       connection.close()
     },
@@ -40,10 +52,18 @@ export function temporaryWorkspace(): Workspace {
   const repository = createMemoryVfsRepository(options)
   if (!repository.ok) throw new Error(repository.error.message)
   const settings = createSettingsService(createMemorySettingsRepository())
+  const refresh = createRefreshService({
+    settings,
+    validate: async () => ({ ok: true }),
+  })
   return {
+    refresh,
     settings,
     vfs: createVfsService(repository.value),
     mode: 'temporary',
-    dispose: () => settings.dispose(),
+    dispose: () => {
+      refresh.dispose()
+      settings.dispose()
+    },
   }
 }

@@ -5,6 +5,7 @@ import type { AppId } from '../../core/shared/ids'
 import { WindowLayer } from '../windows/WindowLayer'
 import { Taskbar } from '../taskbar/Taskbar'
 import { focusWindowElement } from '../windows/focus'
+import { RefreshControl } from './RefreshControl'
 import { ThemeControl } from './ThemeControl'
 import { DesktopClock } from './DesktopClock'
 import { DesktopWallpaper } from './DesktopWallpaper'
@@ -36,6 +37,7 @@ export function DesktopShell() {
           <span className={styles.location}>Desktop</span>
         </div>
         <div className={styles.systemControls}>
+          <RefreshControl refresh={runtime.refresh} />
           <ThemeControl settings={runtime.settings} />
           <DesktopClock />
         </div>
