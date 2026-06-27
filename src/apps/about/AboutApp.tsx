@@ -1,3 +1,4 @@
+import { StorageHelp } from '../../shared/ui/StorageHelp'
 import styles from './AboutApp.module.css'
 export default function AboutApp() {
   return (
@@ -26,9 +27,10 @@ export default function AboutApp() {
         </div>
       </div>
       <p className={styles.note}>
-        This is the first working slice. Files and persistent storage will
-        follow.
+        Your workspace and appearance are stored in this browser. The Files
+        application is coming next.
       </p>
+      <StorageHelp />
     </div>
   )
 }

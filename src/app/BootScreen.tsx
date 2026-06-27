@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { StorageHelp } from '../shared/ui/StorageHelp'
 import { BrowserOS } from './BrowserOS'
 import type { BootController } from './boot'
 import styles from './BootScreen.module.css'
@@ -22,7 +23,9 @@ export function BootScreen({ controller }: { controller: BootController }) {
           <p role="status">Preparing your files…</p>
         ) : (
           <>
+            <h2>{state.guidance.title}</h2>
             <p role="alert">{state.message}</p>
+            <p>{state.guidance.action}</p>
             <div className={styles.actions}>
               <button
                 ref={(button) => button?.focus()}
@@ -37,6 +40,7 @@ export function BootScreen({ controller }: { controller: BootController }) {
             <p>
               Temporary files will be lost when you reload or close this tab.
             </p>
+            <StorageHelp />
           </>
         )}
       </section>

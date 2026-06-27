@@ -1,6 +1,11 @@
 export type ThemePreference = 'system' | 'light' | 'dark'
 export type SettingsErrorCode =
-  'INVALID_VALUE' | 'CORRUPT_DATA' | 'STORAGE_UNAVAILABLE' | 'BUSY' | 'DISPOSED'
+  | 'QUOTA'
+  | 'INVALID_VALUE'
+  | 'CORRUPT_DATA'
+  | 'STORAGE_UNAVAILABLE'
+  | 'BUSY'
+  | 'DISPOSED'
 export type SettingsResult<T> =
   | { readonly ok: true; readonly value: T }
   | {

@@ -5,6 +5,8 @@ interface BrowserRequest<T> {
   error: unknown
   onsuccess: (() => void) | null
   onerror: (() => void) | null
+  onblocked: (() => void) | null
+  onupgradeneeded: (() => void) | null
 }
 interface BrowserTransaction {
   error: unknown
@@ -18,9 +20,14 @@ interface BrowserTransaction {
 interface BrowserDatabase {
   transaction(name: string | string[], mode?: 'readwrite'): BrowserTransaction
   close(): void
+  createObjectStore(
+    name: string,
+    options: { keyPath: string },
+  ): { put(value: unknown): unknown }
 }
 declare const indexedDB: {
   open(name: string, version?: number): BrowserRequest<BrowserDatabase>
+  deleteDatabase(name: string): BrowserRequest<unknown>
 }
 declare const window: object
 
@@ -114,6 +121,42 @@ test('orphaned contents block boot and are preserved', async ({ page }) => {
   await expect(
     page.getByRole('navigation', { name: 'Application launcher' }),
   ).toHaveCount(0)
+  const contents = () =>
+    page.evaluate(async () => {
+      const request = indexedDB.open('browser-os')
+      const database = await new Promise<BrowserDatabase>((resolve) => {
+        request.onsuccess = () => resolve(request.result)
+      })
+      try {
+        return await new Promise<unknown[]>((resolve, reject) => {
+          const query = database
+            .transaction('contents')
+            .objectStore('contents')
+            .getAll()
+          query.onsuccess = () => resolve(query.result)
+          query.onerror = () => reject(query.error)
+        })
+      } finally {
+        database.close()
+      }
+    })
+  expect(await contents()).toEqual([{ id: 'orphan', text: 'Do not erase' }])
+  await page.getByRole('button', { name: 'Use a temporary workspace' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'BrowserOS', exact: true }),
+  ).toBeVisible()
+  await page.getByRole('combobox', { name: 'Appearance' }).selectOption('dark')
+  expect(await contents()).toEqual([{ id: 'orphan', text: 'Do not erase' }])
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const request = indexedDB.deleteDatabase('browser-os')
+        request.onsuccess = () => resolve()
+        request.onerror = () => reject(request.error)
+        request.onblocked = () =>
+          reject(new Error('Recovery leaked a connection'))
+      }),
+  )
 })
 
 test('a version change stops the active runtime and refuses an unsupported schema', async ({
@@ -195,3 +238,49 @@ for (const corruption of ['none', 'missing', 'wrong-size'] as const) {
     else await expect(page.getByRole('alert')).toContainText('preserved')
   })
 }
+
+test('incompatible schema retries preserve data and release their connections', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const request = indexedDB.open('browser-os', 1)
+    request.onupgradeneeded = () => {
+      request.result
+        .createObjectStore('legacy', { keyPath: 'id' })
+        .put({ id: 'original', text: 'Keep this data' })
+    }
+    request.onsuccess = () => request.result.close()
+  })
+  await page.goto('/')
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await expect(
+      page.getByRole('heading', { name: 'Workspace format is incompatible' }),
+    ).toBeVisible()
+    await expect(page.getByRole('alert')).toContainText('preserved')
+    if (attempt < 2)
+      await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  }
+  await page.evaluate(async () => {
+    const request = indexedDB.open('browser-os')
+    const database = await new Promise<BrowserDatabase>((resolve) => {
+      request.onsuccess = () => resolve(request.result)
+    })
+    const query = database.transaction('legacy').objectStore('legacy').getAll()
+    const records = await new Promise<unknown[]>((resolve) => {
+      query.onsuccess = () => resolve(query.result)
+    })
+    database.close()
+    if (
+      JSON.stringify(records) !==
+      JSON.stringify([{ id: 'original', text: 'Keep this data' }])
+    )
+      throw new Error('Original data changed')
+    await new Promise<void>((resolve, reject) => {
+      const deletion = indexedDB.deleteDatabase('browser-os')
+      deletion.onsuccess = () => resolve()
+      deletion.onerror = () => reject(deletion.error)
+      deletion.onblocked = () =>
+        reject(new Error('Failed boot leaked a connection'))
+    })
+  })
+})

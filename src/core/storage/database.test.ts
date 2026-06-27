@@ -61,3 +61,31 @@ it('reports a denied global storage accessor as unavailable', async () => {
     else Reflect.deleteProperty(globalThis, 'indexedDB')
   }
 })
+
+it.each(['SecurityError', 'NotAllowedError'])(
+  'classifies synchronous %s as unavailable',
+  async (name) => {
+    const factory = {
+      open: () => {
+        throw new DOMException('Denied', name)
+      },
+    } as unknown as IDBFactory
+    expect(await openDatabase({ factory })).toMatchObject({
+      ok: false,
+      error: { code: 'UNAVAILABLE' },
+    })
+  },
+)
+it('classifies an asynchronous security error as unavailable', async () => {
+  const request = {
+    error: new DOMException('Denied', 'SecurityError'),
+    onerror: null as (() => void) | null,
+  }
+  const factory = { open: () => request } as unknown as IDBFactory
+  const result = openDatabase({ factory })
+  request.onerror?.()
+  expect(await result).toMatchObject({
+    ok: false,
+    error: { code: 'UNAVAILABLE' },
+  })
+})

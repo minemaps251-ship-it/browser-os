@@ -10,6 +10,14 @@ import type {
   StorageErrorCode,
   StorageResult,
 } from './types'
+function openingErrorCode(cause: unknown): StorageErrorCode {
+  if (typeof cause === 'object' && cause !== null && 'name' in cause) {
+    if (cause.name === 'VersionError') return 'NEWER_DATABASE'
+    if (cause.name === 'SecurityError' || cause.name === 'NotAllowedError')
+      return 'UNAVAILABLE'
+  }
+  return 'OPEN_FAILED'
+}
 export interface OpenDatabaseOptions {
   readonly name?: string
   readonly factory?: IDBFactory
@@ -68,9 +76,7 @@ export function openDatabase(
         fail('BLOCKED', 'Another connection blocks database initialization.')
       request.onerror = () =>
         fail(
-          request.error?.name === 'VersionError'
-            ? 'NEWER_DATABASE'
-            : 'OPEN_FAILED',
+          openingErrorCode(request.error),
           'Could not open IndexedDB.',
           request.error,
         )
@@ -141,7 +147,7 @@ export function openDatabase(
         }
       }
     } catch (cause) {
-      fail('OPEN_FAILED', 'IndexedDB opening failed.', cause)
+      fail(openingErrorCode(cause), 'IndexedDB opening failed.', cause)
     }
   })
 }

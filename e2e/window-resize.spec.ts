@@ -52,9 +52,7 @@ test('constrains minimum/maximum, rolls back cancellation, and survives close du
   await expect(frame).toHaveCSS('width', '280px')
   await expect(frame).toHaveCSS('height', '240px')
   await page
-    .getByText(
-      'This is the first working slice. Files and persistent storage will follow.',
-    )
+    .getByText('Storage and recovery', { exact: true })
     .scrollIntoViewIfNeeded()
   await expect(
     page.getByRole('button', { name: 'Close About BrowserOS' }),

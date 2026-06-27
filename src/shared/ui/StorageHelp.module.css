@@ -1,0 +1,17 @@
+.help {
+  margin-top: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.help summary {
+  color: var(--text);
+  cursor: pointer;
+  padding: 6px 0;
+}
+.help p {
+  margin: 10px 0;
+}
+.help ul {
+  padding-left: 20px;
+}

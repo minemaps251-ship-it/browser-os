@@ -1,3 +1,4 @@
+import type { VfsResult } from '../core/filesystem/types'
 import { describe, expect, it, vi } from 'vitest'
 import { createBootController } from './boot'
 import { createBrowserRuntime } from './createRuntime'
@@ -14,7 +15,10 @@ function fixture() {
       ok: true,
       value: connection,
     })),
-    validate: vi.fn(async () => ({ ok: true as const, value: undefined })),
+    validate: vi.fn(async (): Promise<VfsResult<void>> => ({
+      ok: true,
+      value: undefined,
+    })),
     createRuntime: vi.fn(() => runtime),
     temporary: vi.fn(temporaryWorkspace),
     initializeSettings: vi.fn(async () => ({
@@ -128,3 +132,51 @@ it('preserves data and closes the resource when settings cannot be loaded', asyn
   expect(f.dependencies.createRuntime).not.toHaveBeenCalled()
   boot.dispose()
 })
+
+it.each([
+  'UNAVAILABLE',
+  'BLOCKED',
+  'TIMEOUT',
+  'NEWER_DATABASE',
+  'CORRUPT_SCHEMA',
+  'OPEN_FAILED',
+] as const)(
+  'classifies %s without exposing raw errors or creating a runtime',
+  async (code) => {
+    const f = fixture()
+    f.dependencies.open.mockResolvedValueOnce({
+      ok: false,
+      error: { code, message: 'RAW_PRIVATE_DATABASE_ERROR' },
+    })
+    const boot = createBootController(f.dependencies)
+    await boot.start()
+    const state = boot.getSnapshot()
+    expect(state).toMatchObject({ status: 'error', reason: code })
+    if (state.status !== 'error') throw new Error('Expected recovery')
+    expect(state.message).not.toContain('RAW_PRIVATE')
+    expect(state.guidance.action).toBeTruthy()
+    expect(f.dependencies.createRuntime).not.toHaveBeenCalled()
+    expect(f.dependencies.temporary).not.toHaveBeenCalled()
+    boot.dispose()
+  },
+)
+
+it.each(['CORRUPT_DATA', 'STORAGE_UNAVAILABLE'] as const)(
+  'classifies failed %s validation and closes the resource',
+  async (code) => {
+    const f = fixture()
+    f.dependencies.validate.mockResolvedValueOnce({
+      ok: false,
+      error: { code, message: 'Invalid' },
+    })
+    const boot = createBootController(f.dependencies)
+    await boot.start()
+    expect(boot.getSnapshot()).toMatchObject({
+      status: 'error',
+      reason: code === 'CORRUPT_DATA' ? 'CORRUPT_DATA' : 'READ_FAILED',
+    })
+    expect(f.close).toHaveBeenCalledOnce()
+    expect(f.dependencies.createRuntime).not.toHaveBeenCalled()
+    boot.dispose()
+  },
+)

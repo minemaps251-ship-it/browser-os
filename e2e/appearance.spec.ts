@@ -175,6 +175,8 @@ for (const failure of ['quota', 'abort'] as const) {
     }, failure)
     await choice.selectOption('dark')
     await expect(page.getByRole('alert')).toContainText('retry')
+    if (failure === 'quota')
+      await expect(page.getByRole('alert')).toContainText('storage is full')
     await expect(choice).toHaveValue('system')
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
     expect(await themeRecord(page, 'get')).toEqual({

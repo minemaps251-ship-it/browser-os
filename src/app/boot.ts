@@ -1,3 +1,8 @@
+import {
+  getRecoveryGuidance,
+  type RecoveryGuidance,
+  type RecoveryReason,
+} from './recovery'
 import { openDatabase } from '../core/storage/database'
 import { validateStoredVfs } from '../core/storage/readRepository'
 import { createBrowserRuntime, type BrowserRuntime } from './createRuntime'
@@ -9,7 +14,12 @@ import {
 
 export type BootState =
   | { readonly status: 'loading' }
-  | { readonly status: 'error'; readonly message: string }
+  | {
+      readonly status: 'error'
+      readonly message: string
+      readonly reason: RecoveryReason
+      readonly guidance: RecoveryGuidance
+    }
   | { readonly status: 'ready'; readonly runtime: BrowserRuntime }
   | { readonly status: 'stopped' }
 const defaults = {
@@ -31,6 +41,10 @@ export function createBootController(dependencies: typeof defaults = defaults) {
     state = next
     for (const listener of listeners) listener()
   }
+  const fail = (reason: RecoveryReason) => {
+    const guidance = getRecoveryGuidance(reason)
+    publish({ status: 'error', reason, guidance, message: guidance.message })
+  }
   const release = () => {
     pendingWorkspace?.dispose()
     pendingWorkspace = undefined
@@ -48,22 +62,11 @@ export function createBootController(dependencies: typeof defaults = defaults) {
           if (stopped || attempt !== generation) return
           ++generation
           release()
-          publish({
-            status: 'error',
-            message:
-              'Your workspace was opened by a newer version. Close other BrowserOS tabs and retry.',
-          })
+          fail('VERSION_CHANGED')
         },
       })
       if (!opened.ok) {
-        if (!stopped && attempt === generation)
-          publish({
-            status: 'error',
-            message:
-              opened.error.code === 'NEWER_DATABASE'
-                ? 'This workspace needs a newer version of BrowserOS.'
-                : 'Your saved workspace could not be opened. Close other BrowserOS tabs or check browser storage permissions, then retry.',
-          })
+        if (!stopped && attempt === generation) fail(opened.error.code)
         return
       }
       workspace = persistentWorkspace(opened.value)
@@ -80,11 +83,11 @@ export function createBootController(dependencies: typeof defaults = defaults) {
       if (!valid.ok || opened.value.closed) {
         workspace.dispose()
         pendingWorkspace = undefined
-        publish({
-          status: 'error',
-          message:
-            'Your saved workspace could not be verified. Saved data has been preserved. You can retry or use a temporary workspace.',
-        })
+        fail(
+          !valid.ok && valid.error.code === 'CORRUPT_DATA'
+            ? 'CORRUPT_DATA'
+            : 'READ_FAILED',
+        )
         return
       }
       const settings = await dependencies.initializeSettings(workspace)
@@ -95,11 +98,7 @@ export function createBootController(dependencies: typeof defaults = defaults) {
       if (!settings.ok || opened.value.closed) {
         workspace.dispose()
         pendingWorkspace = undefined
-        publish({
-          status: 'error',
-          message:
-            'Your workspace settings could not be loaded. Saved data has been preserved. Please retry.',
-        })
+        fail('READ_FAILED')
         return
       }
       const runtime = dependencies.createRuntime(workspace)
@@ -109,12 +108,7 @@ export function createBootController(dependencies: typeof defaults = defaults) {
     } catch {
       workspace?.dispose()
       if (attempt === generation) pendingWorkspace = undefined
-      if (!stopped && attempt === generation)
-        publish({
-          status: 'error',
-          message:
-            'Your workspace could not start. Saved data has been preserved.',
-        })
+      if (!stopped && attempt === generation) fail('START_FAILED')
     }
   }
   return {
@@ -138,10 +132,7 @@ export function createBootController(dependencies: typeof defaults = defaults) {
         })
       } catch {
         workspace?.dispose()
-        publish({
-          status: 'error',
-          message: 'The temporary workspace could not start.',
-        })
+        fail('TEMPORARY_FAILED')
       }
     },
     dispose: () => {

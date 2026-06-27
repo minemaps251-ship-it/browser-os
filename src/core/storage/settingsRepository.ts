@@ -8,6 +8,23 @@ import {
 import { STORES } from './schema'
 import { requestResult, transactionDone } from './requests'
 import type { DatabaseConnection, ThemeSettingRecord } from './types'
+function storageFailure(cause: unknown) {
+  if (
+    typeof cause === 'object' &&
+    cause !== null &&
+    'name' in cause &&
+    cause.name === 'QuotaExceededError'
+  ) {
+    return settingsFailure(
+      'QUOTA',
+      'Your browser storage is full. Free space on your device, then retry. Your previous appearance setting is unchanged.',
+    )
+  }
+  return settingsFailure(
+    'STORAGE_UNAVAILABLE',
+    'The appearance setting could not be accessed. Please retry.',
+  )
+}
 export function createIndexedDbSettingsRepository(
   connection: DatabaseConnection,
 ): SettingsRepository {
@@ -24,23 +41,16 @@ export function createIndexedDbSettingsRepository(
         () => false,
       )
       const result = await operation(transaction.objectStore(STORES.settings))
-      if (!(await completion))
-        return settingsFailure(
-          'STORAGE_UNAVAILABLE',
-          'The appearance setting could not be saved. Please retry.',
-        )
+      if (!(await completion)) return storageFailure(transaction.error)
       return result
-    } catch {
+    } catch (cause) {
       try {
         transaction?.abort()
       } catch {
         /* Already completed or aborted. */
       }
       await completion
-      return settingsFailure(
-        'STORAGE_UNAVAILABLE',
-        'The appearance setting could not be accessed. Please retry.',
-      )
+      return storageFailure(cause)
     }
   }
   return {
