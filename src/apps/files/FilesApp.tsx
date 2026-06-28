@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useRuntime } from '../../app/runtimeContext'
 import { createDirectorySession } from './session'
 import { CreateEntryDialog, type CreateDestination } from './CreateEntryDialog'
-import type { NodeId } from '../../core/filesystem/types'
+import { RenameEntryForm, type RenameTarget } from './RenameEntryForm'
+import type { FileSystemNode, NodeId } from '../../core/filesystem/types'
 import type { WindowId } from '../../core/shared/ids'
 import styles from './FilesApp.module.css'
 export default function FilesApp() {
@@ -14,11 +15,14 @@ export default function FilesApp() {
   const [selected, setSelected] = useState<NodeId | null>(null)
   const [fileNotice, setFileNotice] = useState<string | null>(null)
   const heading = useRef<HTMLHeadingElement>(null)
+  const renameWindow = useRef<WindowId | null>(null)
+  const renameButton = useRef<HTMLButtonElement>(null)
+  const [renaming, setRenaming] = useState<RenameTarget | null>(null)
   const newFolder = useRef<HTMLButtonElement>(null)
   const newFile = useRef<HTMLButtonElement>(null)
   const [creation, setCreation] = useState<CreateDestination | null>(null)
-  const focusAfterCreation = useRef<{
-    kind: CreateDestination['kind']
+  const focusAfterMutation = useRef<{
+    kind: CreateDestination['kind'] | 'rename'
     windowId: WindowId | null
   } | null>(null)
   const focusAfterNavigation = useRef<WindowId | null>(null)
@@ -36,22 +40,54 @@ export default function FilesApp() {
     }
   }, [snapshot.status, snapshot.directoryId, runtime])
   useEffect(() => {
-    const completed = focusAfterCreation.current
-    if (snapshot.status !== 'ready' || !completed) return
-    focusAfterCreation.current = null
+    const completed = focusAfterMutation.current
+    if (renaming || snapshot.status !== 'ready' || !completed) return
+    focusAfterMutation.current = null
     if (runtime.windows.getState().focusedId === completed.windowId) {
-      const trigger = completed.kind === 'directory' ? newFolder : newFile
+      const trigger =
+        completed.kind === 'rename'
+          ? renameButton
+          : completed.kind === 'directory'
+            ? newFolder
+            : newFile
+      if (trigger.current?.disabled) heading.current?.focus()
       trigger.current?.focus()
     }
-  }, [snapshot, runtime])
+  }, [snapshot, runtime, renaming])
+  function stopRename() {
+    setRenaming(null)
+    focusAfterMutation.current = {
+      kind: 'rename',
+      windowId: renameWindow.current,
+    }
+  }
+  function startRename(entry: FileSystemNode) {
+    if (
+      renaming ||
+      creation ||
+      snapshot.status !== 'ready' ||
+      !snapshot.directoryId ||
+      entry.metadata.protected
+    )
+      return
+    renameWindow.current = runtime.windows.getState().focusedId
+    setSelected(entry.id)
+    setFileNotice(null)
+    setRenaming({
+      id: entry.id,
+      name: entry.name,
+      directoryId: snapshot.directoryId,
+    })
+  }
   function navigate(id: NodeId) {
+    if (renaming) return
     focusAfterNavigation.current = runtime.windows.getState().focusedId
     setSelected(null)
     setFileNotice(null)
     void session.navigate(id)
   }
   function openCreation(kind: CreateDestination['kind']) {
-    if (snapshot.status !== 'ready' || !snapshot.directoryId) return
+    if (renaming || snapshot.status !== 'ready' || !snapshot.directoryId) return
     setCreation({
       kind,
       parentId: snapshot.directoryId,
@@ -64,6 +100,7 @@ export default function FilesApp() {
     <div className={styles.app}>
       <div className={styles.toolbar}>
         <button
+          disabled={!!renaming}
           onClick={() => {
             focusAfterNavigation.current = runtime.windows.getState().focusedId
             setSelected(null)
@@ -74,7 +111,7 @@ export default function FilesApp() {
           Home
         </button>
         <button
-          disabled={!parent || snapshot.status !== 'ready'}
+          disabled={!!renaming || !parent || snapshot.status !== 'ready'}
           onClick={() => {
             if (parent) navigate(parent.id)
           }}
@@ -84,23 +121,52 @@ export default function FilesApp() {
         <button onClick={() => void session.reload()}>Refresh folder</button>
         <button
           ref={newFolder}
-          disabled={snapshot.status !== 'ready'}
+          disabled={!!renaming || snapshot.status !== 'ready'}
           onClick={() => openCreation('directory')}
         >
           New folder
         </button>
         <button
           ref={newFile}
-          disabled={snapshot.status !== 'ready'}
+          disabled={!!renaming || snapshot.status !== 'ready'}
           onClick={() => openCreation('file')}
         >
           New file
         </button>
+        <button
+          ref={renameButton}
+          disabled={
+            !!renaming ||
+            snapshot.status !== 'ready' ||
+            !selectedEntry ||
+            selectedEntry.metadata.protected
+          }
+          onClick={() => {
+            if (selectedEntry) startRename(selectedEntry)
+          }}
+        >
+          Rename
+        </button>
       </div>
+      {renaming && (
+        <RenameEntryForm
+          target={renaming}
+          vfs={runtime.vfs}
+          onCancel={stopRename}
+          onRenamed={() => {
+            if (session.getSnapshot().directoryId === renaming.directoryId) {
+              setSelected(renaming.id)
+              setFileNotice('The item has been renamed.')
+            }
+            stopRename()
+          }}
+        />
+      )}
       <nav className={styles.breadcrumbs} aria-label="Folder path">
         {snapshot.breadcrumbs.map((crumb) => (
           <button
             key={crumb.id}
+            disabled={!!renaming}
             aria-current={
               crumb.id === snapshot.directoryId ? 'location' : undefined
             }
@@ -128,7 +194,7 @@ export default function FilesApp() {
           ) : (
             <ul className={styles.list} aria-label="Folder contents">
               {snapshot.entries.map((entry) => (
-                <li key={entry.id}>
+                <li key={entry.id} className={styles.row}>
                   <button
                     className={`${styles.entry} ${selectedEntry?.id === entry.id ? styles.selected : ''}`}
                     aria-label={`${entry.kind === 'directory' ? 'Open folder' : 'Select file'} ${entry.name}`}
@@ -138,6 +204,13 @@ export default function FilesApp() {
                         ? selectedEntry?.id === entry.id
                         : undefined
                     }
+                    disabled={!!renaming}
+                    onKeyDown={(event) => {
+                      if (event.key === 'F2') {
+                        event.preventDefault()
+                        startRename(entry)
+                      }
+                    }}
                     onClick={() => {
                       if (entry.kind === 'directory') navigate(entry.id)
                       else {
@@ -166,6 +239,26 @@ export default function FilesApp() {
                         : `${entry.byteLength} bytes`}
                     </span>
                   </button>
+                  {entry.kind === 'directory' && (
+                    <button
+                      className={styles.selectFolder}
+                      aria-label={`Select folder ${entry.name}`}
+                      aria-pressed={selectedEntry?.id === entry.id}
+                      disabled={!!renaming}
+                      onClick={() => {
+                        setSelected(entry.id)
+                        setFileNotice(null)
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'F2') {
+                          event.preventDefault()
+                          startRename(entry)
+                        }
+                      }}
+                    >
+                      Select
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -183,7 +276,7 @@ export default function FilesApp() {
             if (session.getSnapshot().directoryId === creation.parentId) {
               setSelected(id)
               setFileNotice('The new item has been created.')
-              focusAfterCreation.current = {
+              focusAfterMutation.current = {
                 kind: creation.kind,
                 windowId: runtime.windows.getState().focusedId,
               }

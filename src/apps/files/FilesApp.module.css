@@ -77,3 +77,23 @@
   font-size: 11px;
   white-space: nowrap;
 }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.selectFolder {
+  flex-shrink: 0;
+  padding: 8px;
+  min-height: 40px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  font: inherit;
+}
+.selectFolder[aria-pressed='true'] {
+  color: var(--text);
+  background: var(--window-titlebar);
+}

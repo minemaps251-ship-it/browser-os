@@ -238,3 +238,105 @@ test('creation dialog fits mobile and returns focus after cancellation', async (
   await dialog.getByRole('button', { name: 'Cancel' }).click()
   await expect(frame.getByRole('button', { name: 'New file' })).toBeFocused()
 })
+
+test('renames a folder by keyboard while another Files window stays inside it, and persists renamed files', async ({
+  page,
+}) => {
+  await page.goto('/')
+  const launcher = page.getByRole('button', { name: 'Open Files', exact: true })
+  await launcher.click()
+  const frames = page.getByRole('region', { name: 'Files window' })
+  await frames
+    .first()
+    .getByRole('button', { name: 'Open folder Documents' })
+    .click()
+  await expect(frames.first().getByText('This folder is empty.')).toBeVisible()
+  await launcher.click()
+  const active = frames.nth(1)
+  await active.getByRole('button', { name: 'Select folder Documents' }).click()
+  await page.keyboard.press('F2')
+  const form = active.getByRole('form', { name: 'Rename item' })
+  const name = form.getByRole('textbox', { name: 'Rename Documents' })
+  await expect(name).toBeFocused()
+  await name.fill('Desktop')
+  await page.keyboard.press('Enter')
+  await expect(form.getByRole('alert')).toContainText('already exists')
+  await name.fill('Work')
+  await page.keyboard.press('Enter')
+  await expect(form).toBeHidden()
+  await expect(
+    active.getByRole('button', { name: 'Rename', exact: true }),
+  ).toBeFocused()
+  await expect(
+    active.getByRole('button', { name: 'Select folder Work' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await expect(
+    frames.first().getByRole('heading', { name: 'Work' }),
+  ).toBeVisible()
+  await expect(
+    frames.first().getByRole('button', { name: 'Work', exact: true }),
+  ).toHaveAttribute('aria-current', 'location')
+  await active.getByRole('button', { name: 'Open folder Work' }).click()
+  await expect(active.getByText('This folder is empty.')).toBeVisible()
+  await active.getByRole('button', { name: 'New file' }).click()
+  const dialog = page.getByRole('dialog', { name: 'New file' })
+  await dialog.getByRole('textbox').fill('before.txt')
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click()
+  await expect(dialog).toBeHidden()
+  await expect(
+    active.getByRole('button', { name: 'Rename', exact: true }),
+  ).toBeEnabled()
+  await active.getByRole('button', { name: 'Rename', exact: true }).click()
+  await active
+    .getByRole('textbox', { name: 'Rename before.txt' })
+    .fill('after.txt')
+  await page.keyboard.press('Escape')
+  await expect(
+    active.getByRole('button', { name: 'Select file before.txt' }),
+  ).toBeVisible()
+  await active.getByRole('button', { name: 'Rename', exact: true }).click()
+  await active
+    .getByRole('textbox', { name: 'Rename before.txt' })
+    .fill('after.txt')
+  await page.keyboard.press('Enter')
+  await expect(
+    active.getByRole('button', { name: 'Select file after.txt' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await expect(
+    frames.first().getByRole('button', { name: 'Select file after.txt' }),
+  ).toBeVisible()
+  await page.reload()
+  await launcher.click()
+  await frames.first().getByRole('button', { name: 'Open folder Work' }).click()
+  await expect(
+    frames.first().getByRole('button', { name: 'Select file after.txt' }),
+  ).toBeVisible()
+  await expect(
+    frames.first().getByRole('button', { name: 'Select file before.txt' }),
+  ).toHaveCount(0)
+})
+
+test('inline rename controls fit mobile and protected folders cannot be renamed', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 667 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open Files', exact: true }).click()
+  const frame = page.getByRole('region', { name: 'Files window' })
+  await frame.getByRole('button', { name: 'Select folder Documents' }).click()
+  await frame.getByRole('button', { name: 'Rename', exact: true }).click()
+  const form = frame.getByRole('form', { name: 'Rename item' })
+  await expect(form.getByRole('textbox')).toBeInViewport()
+  await expect(form.getByRole('button', { name: 'Save name' })).toBeInViewport()
+  await form.getByRole('button', { name: 'Cancel' }).click()
+  await expect(
+    frame.getByRole('button', { name: 'Rename', exact: true }),
+  ).toBeFocused()
+  await frame.getByRole('button', { name: 'Workspace', exact: true }).click()
+  await frame.getByRole('button', { name: 'Select folder system' }).click()
+  await expect(
+    frame.getByRole('button', { name: 'Rename', exact: true }),
+  ).toBeDisabled()
+  await page.keyboard.press('F2')
+  await expect(form).toBeHidden()
+})
