@@ -15,6 +15,7 @@ import type {
 /** Each operation observes one committed tree, including the entire path traversal. */
 export interface VfsReadRepository {
   readDocument(id: NodeId): Promise<VfsResult<DocumentRead>>
+  getAncestors(id: NodeId): Promise<VfsResult<readonly FileSystemNode[]>>
   getNode(id: NodeId): Promise<VfsResult<FileSystemNode>>
   getChildren(id: NodeId): Promise<VfsResult<readonly FileSystemNode[]>>
   resolvePath(path: ParsedPath, cwd: NodeId): Promise<VfsResult<NodeId>>

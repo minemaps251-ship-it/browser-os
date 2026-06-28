@@ -35,6 +35,7 @@ export type VirtualFileSystem = ReturnType<typeof createVfsService>
 export function createVfsReadService(repository: VfsReadRepository) {
   return {
     readFile: (id: NodeId) => repository.readDocument(id),
+    ancestors: (id: NodeId) => repository.getAncestors(id),
     stat: (id: NodeId) => repository.getNode(id),
     listDirectory: (id: NodeId) => repository.getChildren(id),
     pathOf: (id: NodeId) => repository.pathOf(id),

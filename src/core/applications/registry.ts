@@ -6,6 +6,7 @@ export interface ApplicationManifest {
   readonly name: string
   readonly description: string
   readonly icon: string
+  readonly dock?: 'pinned'
   readonly instancePolicy: 'singleton' | 'multiple'
   readonly window: { readonly defaultSize: Size; readonly minSize: Size }
 }
@@ -26,7 +27,8 @@ export function createRegistry(manifests: readonly ApplicationManifest[]) {
       ].every((value) => Number.isFinite(value) && value > 0) ||
       defaultSize.width < minSize.width ||
       defaultSize.height < minSize.height ||
-      !['singleton', 'multiple'].includes(manifest.instancePolicy)
+      !['singleton', 'multiple'].includes(manifest.instancePolicy) ||
+      (manifest.dock !== undefined && manifest.dock !== 'pinned')
     ) {
       throw new Error(`Invalid or duplicate application: ${manifest.id}`)
     }

@@ -27,8 +27,8 @@ export default function AboutApp() {
         </div>
       </div>
       <p className={styles.note}>
-        Your workspace and appearance are stored in this browser. The Files
-        application is coming next.
+        Your workspace and appearance are stored in this browser. Use Files to
+        browse folders in your workspace.
       </p>
       <StorageHelp />
     </div>

@@ -1,0 +1,79 @@
+.app {
+  color: var(--text);
+  font-size: 13px;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.toolbar button,
+.breadcrumbs button {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  padding: 6px 10px;
+}
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 16px 0;
+}
+.breadcrumbs button {
+  border: 0;
+  padding: 4px 6px;
+  color: var(--muted);
+}
+.breadcrumbs [aria-current] {
+  color: var(--text);
+  font-weight: 650;
+}
+.heading {
+  font-size: 18px;
+  margin: 14px 0;
+}
+.empty {
+  color: var(--muted);
+  padding: 24px 0;
+}
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-bottom-color: var(--line);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  border-radius: var(--radius-small);
+}
+.entry:hover,
+.selected {
+  background: var(--window-titlebar);
+}
+.icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  fill: var(--accent);
+}
+.name {
+  overflow-wrap: anywhere;
+  flex: 1;
+  min-width: 0;
+}
+.kind {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}

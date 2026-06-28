@@ -41,3 +41,9 @@ describe('application registry', () => {
     ).toThrow('Invalid')
   })
 })
+
+it('accepts explicit Dock pinning for a multi-instance app', () => {
+  expect(
+    createRegistry([{ ...firstApp, dock: 'pinned' }]).get(firstApp.id)?.dock,
+  ).toBe('pinned')
+})

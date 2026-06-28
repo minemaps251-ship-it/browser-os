@@ -58,6 +58,16 @@ export function createIndexedDbReadRepository(
   connection: DatabaseConnection,
 ): VfsReadRepository {
   return {
+    getAncestors: (id) =>
+      read(connection, [STORES.nodes], async (transaction) => {
+        const query = createTransactionReader(transaction)
+        const node = await query.get(id)
+        if (!node.ok) return node
+        const chain = await query.ancestors(node.value)
+        return chain.ok
+          ? { ok: true, value: Object.freeze([...chain.value]) }
+          : chain
+      }),
     getNode: (id) =>
       read(connection, [STORES.nodes], async (transaction) => {
         const query = createTransactionReader(transaction)

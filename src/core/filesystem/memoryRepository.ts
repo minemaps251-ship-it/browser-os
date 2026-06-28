@@ -651,6 +651,27 @@ export function createMemoryVfsRepository(options: {
         }),
       }
     },
+    async getAncestors(id) {
+      const chain: FileSystemNode[] = []
+      const seen = new Set<NodeId>()
+      let current: NodeId | null = id
+      const snapshot = state.nodes
+      while (current !== null) {
+        if (seen.has(current) || seen.size >= VFS_LIMITS.maxNodes)
+          return failure('CORRUPT_DATA', 'Invalid ancestor chain.', id)
+        seen.add(current)
+        const node: FileSystemNode | undefined = snapshot.get(current)
+        if (!node)
+          return failure(
+            current === id ? 'NOT_FOUND' : 'CORRUPT_DATA',
+            'Ancestor is missing.',
+            current,
+          )
+        chain.push(node)
+        current = node.parentId
+      }
+      return { ok: true, value: Object.freeze(chain) }
+    },
     async getNode(id) {
       return getNode(id)
     },

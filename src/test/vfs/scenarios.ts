@@ -182,6 +182,17 @@ function defineCases() {
           value(await context.vfs.pathOf(file)),
           '/home/user/Desktop/workspace/Café.txt',
         )
+        const ancestors = value(await context.vfs.ancestors(file))
+        assertEqual(
+          ancestors.map((node) => node.name),
+          ['Café.txt', 'workspace', 'Desktop', 'user', 'home', ''],
+        )
+        assertEqual(
+          ancestors.slice(0, 3).map((node) => node.id),
+          [file, folder, context.desktop],
+        )
+        assertEqual(ancestors.at(-1)?.id, ROOT_NODE_ID)
+        assertEqual(Object.isFrozen(ancestors), true)
         const moved = value(await context.vfs.readFile(file))
         assertEqual(moved.node.contentId, original.node.contentId)
         assertEqual(moved.contentRevision, receipt.contentRevision)
@@ -200,6 +211,10 @@ function defineCases() {
         )
         value(await context.vfs.remove(folder, { recursive: true }))
         assertMatch(await context.vfs.readFile(file), {
+          ok: false,
+          error: { code: 'NOT_FOUND' },
+        })
+        assertMatch(await context.vfs.ancestors(file), {
           ok: false,
           error: { code: 'NOT_FOUND' },
         })

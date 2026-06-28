@@ -98,3 +98,31 @@ it('retains a separate Dock item for every multiple-instance window', async () =
     runtime.windows.getState().ids[0],
   )
 })
+
+it('cycles pinned multi-instance windows, including minimized ones, without starting new processes', async () => {
+  const runtime = createBrowserRuntime([
+    {
+      manifest: { ...firstApp, dock: 'pinned' },
+      load: async () => ({ default: () => <p>Content</p> }),
+    },
+  ])
+  runtimes.push(runtime)
+  const first = await runtime.launch(firstApp.id)
+  const second = await runtime.launch(firstApp.id)
+  if (!first.ok || !second.ok) throw new Error('Launch failed')
+  render(<BrowserOS runtime={runtime} />)
+  const user = userEvent.setup()
+  const windows = screen.getAllByRole('region', { name: 'First app window' })
+  await user.click(
+    within(windows[1]).getByRole('button', { name: 'Minimize First app' }),
+  )
+  const dock = screen.getByRole('navigation', { name: 'Running applications' })
+  await user.click(within(dock).getByRole('button', { name: 'First app' }))
+  expect(runtime.windows.getState().focusedId).toBe(second.windowId)
+  expect(runtime.windows.getState().byId[second.windowId]?.status).toBe(
+    'visible',
+  )
+  await user.click(within(dock).getByRole('button', { name: 'First app' }))
+  expect(runtime.windows.getState().focusedId).toBe(first.windowId)
+  expect(runtime.listProcesses()).toHaveLength(2)
+})

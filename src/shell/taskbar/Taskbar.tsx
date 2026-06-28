@@ -12,10 +12,12 @@ export function Taskbar() {
   const focusedId = useStore(runtime.windows, (state) => state.focusedId)
   const previousFocus = useRef<WindowId | null>(focusedId)
   const [tooltip, setTooltip] = useState<string | null>(null)
-  // Built-in singleton apps stay available; multi-instance apps retain each window.
+  // Pinned apps keep a single Dock icon; unpinned apps show each running window.
   const pinned = runtime.registry
     .list()
-    .filter((app) => app.instancePolicy === 'singleton')
+    .filter(
+      (app) => app.instancePolicy === 'singleton' || app.dock === 'pinned',
+    )
   useEffect(() => {
     if (previousFocus.current && !focusedId)
       document.getElementById('app-launcher')?.focus()
@@ -36,7 +38,9 @@ export function Taskbar() {
           const window = runtime.windows.getState().byId[id]
           if (
             !window ||
-            runtime.registry.get(window.appId)?.instancePolicy === 'singleton'
+            runtime.registry.get(window.appId)?.instancePolicy ===
+              'singleton' ||
+            runtime.registry.get(window.appId)?.dock === 'pinned'
           )
             return null
           return <WindowItem key={id} id={id} onLabel={setTooltip} />
@@ -61,8 +65,17 @@ function PinnedItem({
   onLabel: LabelHandler
 }) {
   const runtime = useRuntime()
-  const id = useStore(runtime.windows, (state) =>
-    state.ids.find((id) => state.byId[id]?.appId === app.id),
+  const id = useStore(
+    runtime.windows,
+    (state) =>
+      [...state.order]
+        .reverse()
+        .find(
+          (id) =>
+            state.byId[id]?.appId === app.id &&
+            state.byId[id]?.status === 'visible',
+        ) ??
+      [...state.ids].reverse().find((id) => state.byId[id]?.appId === app.id),
   )
   const focused = useStore(
     runtime.windows,
@@ -77,8 +90,18 @@ function PinnedItem({
   async function activate() {
     setError(null)
     if (id) {
-      runtime.restoreWindow(id)
-      focusWindowElement(id)
+      const state = runtime.windows.getState()
+      const instances = state.ids.filter(
+        (candidate) => state.byId[candidate]?.appId === app.id,
+      )
+      const index = state.focusedId ? instances.indexOf(state.focusedId) : -1
+      // Repeated activation cycles every instance, including minimized windows.
+      const target =
+        app.instancePolicy === 'multiple' && index >= 0
+          ? instances[(index + 1) % instances.length]
+          : id
+      runtime.restoreWindow(target)
+      focusWindowElement(target)
       return
     }
     setPending(true)
