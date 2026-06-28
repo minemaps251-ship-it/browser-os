@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useRuntime } from '../../app/runtimeContext'
 import { createDirectorySession } from './session'
+import { CreateEntryDialog, type CreateDestination } from './CreateEntryDialog'
 import type { NodeId } from '../../core/filesystem/types'
 import type { WindowId } from '../../core/shared/ids'
 import styles from './FilesApp.module.css'
@@ -13,6 +14,13 @@ export default function FilesApp() {
   const [selected, setSelected] = useState<NodeId | null>(null)
   const [fileNotice, setFileNotice] = useState<string | null>(null)
   const heading = useRef<HTMLHeadingElement>(null)
+  const newFolder = useRef<HTMLButtonElement>(null)
+  const newFile = useRef<HTMLButtonElement>(null)
+  const [creation, setCreation] = useState<CreateDestination | null>(null)
+  const focusAfterCreation = useRef<{
+    kind: CreateDestination['kind']
+    windowId: WindowId | null
+  } | null>(null)
   const focusAfterNavigation = useRef<WindowId | null>(null)
   useEffect(() => {
     session.start()
@@ -27,11 +35,28 @@ export default function FilesApp() {
       }
     }
   }, [snapshot.status, snapshot.directoryId, runtime])
+  useEffect(() => {
+    const completed = focusAfterCreation.current
+    if (snapshot.status !== 'ready' || !completed) return
+    focusAfterCreation.current = null
+    if (runtime.windows.getState().focusedId === completed.windowId) {
+      const trigger = completed.kind === 'directory' ? newFolder : newFile
+      trigger.current?.focus()
+    }
+  }, [snapshot, runtime])
   function navigate(id: NodeId) {
     focusAfterNavigation.current = runtime.windows.getState().focusedId
     setSelected(null)
     setFileNotice(null)
     void session.navigate(id)
+  }
+  function openCreation(kind: CreateDestination['kind']) {
+    if (snapshot.status !== 'ready' || !snapshot.directoryId) return
+    setCreation({
+      kind,
+      parentId: snapshot.directoryId,
+      parentName: snapshot.breadcrumbs.at(-1)?.name ?? 'Workspace',
+    })
   }
   const parent = snapshot.breadcrumbs.at(-2)
   const selectedEntry = snapshot.entries.find((entry) => entry.id === selected)
@@ -57,6 +82,20 @@ export default function FilesApp() {
           Up
         </button>
         <button onClick={() => void session.reload()}>Refresh folder</button>
+        <button
+          ref={newFolder}
+          disabled={snapshot.status !== 'ready'}
+          onClick={() => openCreation('directory')}
+        >
+          New folder
+        </button>
+        <button
+          ref={newFile}
+          disabled={snapshot.status !== 'ready'}
+          onClick={() => openCreation('file')}
+        >
+          New file
+        </button>
       </div>
       <nav className={styles.breadcrumbs} aria-label="Folder path">
         {snapshot.breadcrumbs.map((crumb) => (
@@ -93,6 +132,7 @@ export default function FilesApp() {
                   <button
                     className={`${styles.entry} ${selectedEntry?.id === entry.id ? styles.selected : ''}`}
                     aria-label={`${entry.kind === 'directory' ? 'Open folder' : 'Select file'} ${entry.name}`}
+                    data-selected={selectedEntry?.id === entry.id || undefined}
                     aria-pressed={
                       entry.kind === 'file'
                         ? selectedEntry?.id === entry.id
@@ -133,6 +173,25 @@ export default function FilesApp() {
         </>
       )}
       {fileNotice && selectedEntry && <p role="status">{fileNotice}</p>}
+      {creation && (
+        <CreateEntryDialog
+          destination={creation}
+          vfs={runtime.vfs}
+          returnFocus={creation.kind === 'directory' ? newFolder : newFile}
+          onCancel={() => setCreation(null)}
+          onCreated={(id) => {
+            if (session.getSnapshot().directoryId === creation.parentId) {
+              setSelected(id)
+              setFileNotice('The new item has been created.')
+              focusAfterCreation.current = {
+                kind: creation.kind,
+                windowId: runtime.windows.getState().focusedId,
+              }
+            }
+            setCreation(null)
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -151,3 +151,90 @@ test('folder controls and breadcrumbs remain reachable on mobile', async ({
     frame.getByRole('button', { name: 'Close Files', exact: true }),
   ).toBeInViewport()
 })
+
+test('creates durable folders and files through keyboard dialogs and updates both Files windows', async ({
+  page,
+}) => {
+  await page.goto('/')
+  const launcher = page.getByRole('button', { name: 'Open Files', exact: true })
+  await launcher.click()
+  const frames = page.getByRole('region', { name: 'Files window' })
+  await expect(
+    frames.first().getByRole('button', { name: 'Open folder Documents' }),
+  ).toBeVisible()
+  await launcher.click()
+  await expect(frames).toHaveCount(2)
+  const active = frames.nth(1)
+  await expect(active.getByRole('button', { name: 'New folder' })).toBeEnabled()
+  const newFolder = active.getByRole('button', { name: 'New folder' })
+  await newFolder.focus()
+  await page.keyboard.press('Enter')
+  const dialog = page.getByRole('dialog', { name: 'New folder' })
+  const name = dialog.getByRole('textbox', { name: 'Name' })
+  await expect(name).toBeFocused()
+  await name.fill('Documents')
+  await page.keyboard.press('Enter')
+  await expect(dialog.getByRole('alert')).toContainText('already exists')
+  await expect(name).toHaveValue('Documents')
+  await name.fill('Projects')
+  await page.keyboard.press('Enter')
+  await expect(dialog).toBeHidden()
+  await expect(newFolder).toBeFocused()
+  await expect(
+    active.getByRole('button', { name: 'Open folder Projects' }),
+  ).toHaveAttribute('data-selected', 'true')
+  await expect(
+    frames.first().getByRole('button', { name: 'Open folder Projects' }),
+  ).toBeVisible()
+  await active.getByRole('button', { name: 'Open folder Projects' }).click()
+  await expect(active.getByText('This folder is empty.')).toBeVisible()
+  const newFile = active.getByRole('button', { name: 'New file' })
+  await newFile.click()
+  const fileDialog = page.getByRole('dialog', { name: 'New file' })
+  await page.keyboard.press('Escape')
+  await expect(fileDialog).toBeHidden()
+  await expect(newFile).toBeFocused()
+  await newFile.click()
+  await fileDialog.getByRole('textbox', { name: 'Name' }).fill('readme.txt')
+  // Native top-layer modal keeps background navigation out of keyboard reach.
+  await page.keyboard.press('Tab')
+  await expect(fileDialog.getByRole('button', { name: 'Cancel' })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(
+    fileDialog.getByRole('button', { name: 'Create', exact: true }),
+  ).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(fileDialog).toBeHidden()
+  await expect(
+    active.getByRole('button', { name: 'Select file readme.txt' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await expect(active.getByText('0 bytes')).toBeVisible()
+  await page.reload()
+  await launcher.click()
+  await frames
+    .first()
+    .getByRole('button', { name: 'Open folder Projects' })
+    .click()
+  await expect(
+    frames.first().getByRole('button', { name: 'Select file readme.txt' }),
+  ).toBeVisible()
+})
+
+test('creation dialog fits mobile and returns focus after cancellation', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 667 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open Files', exact: true }).click()
+  const frame = page.getByRole('region', { name: 'Files window' })
+  await expect(frame.getByRole('button', { name: 'New file' })).toBeEnabled()
+  await frame.getByRole('button', { name: 'New file' }).click()
+  const dialog = page.getByRole('dialog', { name: 'New file' })
+  await expect(dialog.getByRole('textbox')).toBeInViewport()
+  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeInViewport()
+  await expect(
+    dialog.getByRole('button', { name: 'Create', exact: true }),
+  ).toBeInViewport()
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(frame.getByRole('button', { name: 'New file' })).toBeFocused()
+})
