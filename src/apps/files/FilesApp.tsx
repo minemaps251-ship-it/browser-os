@@ -4,6 +4,7 @@ import { createDirectorySession } from './session'
 import { CreateEntryDialog, type CreateDestination } from './CreateEntryDialog'
 import { RenameEntryForm, type RenameTarget } from './RenameEntryForm'
 import { DeleteEntryDialog, type DeleteTarget } from './DeleteEntryDialog'
+import { TransferEntryDialog, type TransferTarget } from './TransferEntryDialog'
 import type { FileSystemNode, NodeId } from '../../core/filesystem/types'
 import type { WindowId } from '../../core/shared/ids'
 import styles from './FilesApp.module.css'
@@ -16,10 +17,14 @@ export default function FilesApp() {
   const [selected, setSelected] = useState<NodeId | null>(null)
   const [fileNotice, setFileNotice] = useState<string | null>(null)
   const heading = useRef<HTMLHeadingElement>(null)
+  const copyButton = useRef<HTMLButtonElement>(null)
+  const moveButton = useRef<HTMLButtonElement>(null)
+  const transferWindow = useRef<WindowId | null>(null)
+  const [transferring, setTransferring] = useState<TransferTarget | null>(null)
   const deleteButton = useRef<HTMLButtonElement>(null)
   const deleteWindow = useRef<WindowId | null>(null)
   const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
-  const [deletionNotice, setDeletionNotice] = useState<string | null>(null)
+  const [operationNotice, setOperationNotice] = useState<string | null>(null)
   const renameWindow = useRef<WindowId | null>(null)
   const renameButton = useRef<HTMLButtonElement>(null)
   const [renaming, setRenaming] = useState<RenameTarget | null>(null)
@@ -27,7 +32,13 @@ export default function FilesApp() {
   const newFile = useRef<HTMLButtonElement>(null)
   const [creation, setCreation] = useState<CreateDestination | null>(null)
   const focusAfterMutation = useRef<{
-    kind: CreateDestination['kind'] | 'rename' | 'delete' | 'delete-cancel'
+    kind:
+      | CreateDestination['kind']
+      | 'rename'
+      | 'delete'
+      | 'delete-cancel'
+      | 'copy'
+      | 'move'
     windowId: WindowId | null
   } | null>(null)
   const focusAfterNavigation = useRef<WindowId | null>(null)
@@ -46,7 +57,13 @@ export default function FilesApp() {
   }, [snapshot.status, snapshot.directoryId, runtime])
   useEffect(() => {
     const completed = focusAfterMutation.current
-    if (renaming || deleting || snapshot.status !== 'ready' || !completed)
+    if (
+      renaming ||
+      deleting ||
+      transferring ||
+      snapshot.status !== 'ready' ||
+      !completed
+    )
       return
     focusAfterMutation.current = null
     if (runtime.windows.getState().focusedId === completed.windowId) {
@@ -54,18 +71,55 @@ export default function FilesApp() {
         heading.current?.focus()
         return
       }
-      const trigger =
-        completed.kind === 'delete-cancel'
-          ? deleteButton
-          : completed.kind === 'rename'
-            ? renameButton
-            : completed.kind === 'directory'
-              ? newFolder
-              : newFile
+      const trigger = {
+        copy: copyButton,
+        move: moveButton,
+        'delete-cancel': deleteButton,
+        rename: renameButton,
+        directory: newFolder,
+        file: newFile,
+      }[completed.kind]
       if (trigger.current?.disabled) heading.current?.focus()
       trigger.current?.focus()
     }
-  }, [snapshot, runtime, renaming, deleting])
+  }, [snapshot, runtime, renaming, deleting, transferring])
+  function stopTransfer(destination?: NodeId) {
+    if (!transferring) return
+    if (destination) {
+      setOperationNotice(
+        transferring.mode === 'copy'
+          ? 'The file has been copied.'
+          : 'The item has been moved.',
+      )
+      if (
+        transferring.mode === 'move' &&
+        session.getSnapshot().directoryId !== destination
+      ) {
+        setSelected(null)
+        setFileNotice(null)
+      }
+    }
+    focusAfterMutation.current = {
+      kind: transferring.mode,
+      windowId: transferWindow.current,
+    }
+    setTransferring(null)
+  }
+  function startTransfer(mode: TransferTarget['mode'], entry: FileSystemNode) {
+    if (
+      renaming ||
+      deleting ||
+      creation ||
+      transferring ||
+      snapshot.status !== 'ready' ||
+      (mode === 'copy' && entry.kind !== 'file') ||
+      (mode === 'move' && entry.metadata.protected)
+    )
+      return
+    transferWindow.current = runtime.windows.getState().focusedId
+    setOperationNotice(null)
+    setTransferring({ mode, id: entry.id, name: entry.name })
+  }
   function stopDelete(clearSelection: boolean) {
     if (clearSelection) {
       setSelected(null)
@@ -81,6 +135,7 @@ export default function FilesApp() {
     if (
       renaming ||
       creation ||
+      transferring ||
       deleting ||
       snapshot.status !== 'ready' ||
       entry.metadata.protected
@@ -88,7 +143,7 @@ export default function FilesApp() {
       return
     deleteWindow.current = runtime.windows.getState().focusedId
     setDeleting({ id: entry.id, name: entry.name, kind: entry.kind })
-    setDeletionNotice(null)
+    setOperationNotice(null)
   }
   function stopRename() {
     setRenaming(null)
@@ -102,12 +157,13 @@ export default function FilesApp() {
       renaming ||
       deleting ||
       creation ||
+      transferring ||
       snapshot.status !== 'ready' ||
       !snapshot.directoryId ||
       entry.metadata.protected
     )
       return
-    setDeletionNotice(null)
+    setOperationNotice(null)
     renameWindow.current = runtime.windows.getState().focusedId
     setSelected(entry.id)
     setFileNotice(null)
@@ -118,22 +174,23 @@ export default function FilesApp() {
     })
   }
   function navigate(id: NodeId) {
-    if (renaming || deleting) return
+    if (renaming || deleting || transferring) return
     focusAfterNavigation.current = runtime.windows.getState().focusedId
     setSelected(null)
     setFileNotice(null)
-    setDeletionNotice(null)
+    setOperationNotice(null)
     void session.navigate(id)
   }
   function openCreation(kind: CreateDestination['kind']) {
     if (
       renaming ||
       deleting ||
+      transferring ||
       snapshot.status !== 'ready' ||
       !snapshot.directoryId
     )
       return
-    setDeletionNotice(null)
+    setOperationNotice(null)
     setCreation({
       kind,
       parentId: snapshot.directoryId,
@@ -151,7 +208,7 @@ export default function FilesApp() {
             focusAfterNavigation.current = runtime.windows.getState().focusedId
             setSelected(null)
             setFileNotice(null)
-            setDeletionNotice(null)
+            setOperationNotice(null)
             void session.home()
           }}
         >
@@ -207,6 +264,33 @@ export default function FilesApp() {
           }}
         >
           Delete
+        </button>
+        <button
+          ref={copyButton}
+          disabled={
+            !!renaming ||
+            snapshot.status !== 'ready' ||
+            selectedEntry?.kind !== 'file'
+          }
+          onClick={() => {
+            if (selectedEntry) startTransfer('copy', selectedEntry)
+          }}
+        >
+          Copy
+        </button>
+        <button
+          ref={moveButton}
+          disabled={
+            !!renaming ||
+            snapshot.status !== 'ready' ||
+            !selectedEntry ||
+            selectedEntry.metadata.protected
+          }
+          onClick={() => {
+            if (selectedEntry) startTransfer('move', selectedEntry)
+          }}
+        >
+          Move
         </button>
       </div>
       {renaming && (
@@ -326,8 +410,18 @@ export default function FilesApp() {
           )}
         </>
       )}
-      {deletionNotice && <p role="status">{deletionNotice}</p>}
+      {operationNotice && <p role="status">{operationNotice}</p>}
       {fileNotice && selectedEntry && <p role="status">{fileNotice}</p>}
+      {transferring && (
+        <TransferEntryDialog
+          target={transferring}
+          vfs={runtime.vfs}
+          refresh={runtime.refresh}
+          returnFocus={transferring.mode === 'copy' ? copyButton : moveButton}
+          onCancel={() => stopTransfer()}
+          onTransferred={stopTransfer}
+        />
+      )}
       {deleting && (
         <DeleteEntryDialog
           target={deleting}
@@ -335,7 +429,7 @@ export default function FilesApp() {
           returnFocus={deleteButton}
           onCancel={() => stopDelete(false)}
           onDeleted={() => {
-            setDeletionNotice(`“${deleting.name}” has been deleted.`)
+            setOperationNotice(`“${deleting.name}” has been deleted.`)
             stopDelete(true)
           }}
           onMissing={() => {

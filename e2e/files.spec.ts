@@ -439,3 +439,108 @@ test('file deletion supports Escape, mobile confirmation and protected selection
   await frame.getByRole('button', { name: 'Select folder system' }).click()
   await expect(trigger).toBeDisabled()
 })
+
+test('copies a file and moves its folder with both windows updating, then persists the result', async ({
+  page,
+}) => {
+  await page.goto('/')
+  const launcher = page.getByRole('button', { name: 'Open Files', exact: true })
+  await launcher.click()
+  const frames = page.getByRole('region', { name: 'Files window' })
+  const first = frames.first()
+  await expect(first.getByRole('button', { name: 'New file' })).toBeEnabled()
+  await first.getByRole('button', { name: 'New file' }).click()
+  const creation = page.getByRole('dialog', { name: 'New file' })
+  await creation.getByRole('textbox').fill('source.txt')
+  await creation.getByRole('button', { name: 'Create', exact: true }).click()
+  await expect(creation).toBeHidden()
+  await first.getByRole('button', { name: 'Open folder Documents' }).click()
+  await expect(first.getByText('This folder is empty.')).toBeVisible()
+  await launcher.click()
+  const active = frames.nth(1)
+  await active.getByRole('button', { name: 'Select file source.txt' }).click()
+  await active.getByRole('button', { name: 'Copy', exact: true }).click()
+  const copy = page.getByRole('dialog', { name: 'Copy item' })
+  await copy.getByRole('button', { name: 'Open destination Documents' }).focus()
+  await page.keyboard.press('Enter')
+  await expect(copy.getByRole('heading', { name: 'Documents' })).toBeFocused()
+  await copy.getByRole('textbox').fill('copied.txt')
+  await copy.getByRole('button', { name: 'Copy here' }).click()
+  await expect(copy).toBeHidden()
+  await expect(
+    active.getByRole('button', { name: 'Copy', exact: true }),
+  ).toBeFocused()
+  await expect(
+    first.getByRole('button', { name: 'Select file copied.txt' }),
+  ).toBeVisible()
+  await expect(
+    active.getByRole('button', { name: 'Select file source.txt' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await active.getByRole('button', { name: 'Select folder Documents' }).click()
+  await expect(
+    active.getByRole('button', { name: 'Copy', exact: true }),
+  ).toBeDisabled()
+  await active.getByRole('button', { name: 'Move', exact: true }).click()
+  const move = page.getByRole('dialog', { name: 'Move item' })
+  await move.getByRole('button', { name: 'Open destination Desktop' }).click()
+  await expect(move.getByRole('button', { name: 'Move here' })).toBeEnabled()
+  await move.getByRole('button', { name: 'Move here' }).click()
+  await expect(move).toBeHidden()
+  await expect(active.getByRole('heading', { name: 'user' })).toBeFocused()
+  await expect(
+    first.getByRole('button', { name: 'Desktop', exact: true }),
+  ).toBeVisible()
+  await expect(
+    first.getByRole('button', { name: 'Select file copied.txt' }),
+  ).toBeVisible()
+  await page.reload()
+  await launcher.click()
+  await first.getByRole('button', { name: 'Open folder Desktop' }).click()
+  await first.getByRole('button', { name: 'Open folder Documents' }).click()
+  await expect(
+    first.getByRole('button', { name: 'Select file copied.txt' }),
+  ).toBeVisible()
+})
+
+test('destination dialog supports collision recovery, cycle rejection and mobile cancellation', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 667 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open Files', exact: true }).click()
+  const frame = page.getByRole('region', { name: 'Files window' })
+  await frame.getByRole('button', { name: 'Select folder Documents' }).click()
+  await frame.getByRole('button', { name: 'Move', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Move item' })
+  await dialog
+    .getByRole('button', { name: 'Open destination Documents' })
+    .click()
+  await expect(
+    dialog.getByRole('button', { name: 'Move here' }),
+  ).toBeInViewport()
+  await dialog.getByRole('button', { name: 'Move here' }).click()
+  await expect(dialog.getByRole('alert')).toContainText(
+    'cannot be moved into itself',
+  )
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(
+    frame.getByRole('button', { name: 'Move', exact: true }),
+  ).toBeFocused()
+  await frame.getByRole('button', { name: 'New file' }).click()
+  const creation = page.getByRole('dialog', { name: 'New file' })
+  await creation.getByRole('textbox').fill('source.txt')
+  await creation.getByRole('button', { name: 'Create', exact: true }).click()
+  await expect(creation).toBeHidden()
+  await frame.getByRole('button', { name: 'Copy', exact: true }).click()
+  const copy = page.getByRole('dialog', { name: 'Copy item' })
+  await expect(copy.getByRole('button', { name: 'Copy here' })).toBeEnabled()
+  await copy.getByRole('button', { name: 'Copy here' }).click()
+  await expect(copy.getByRole('alert')).toContainText('already exists')
+  await copy.getByRole('textbox').fill('copy.txt')
+  await copy.getByRole('button', { name: 'Copy here' }).click()
+  await expect(copy).toBeHidden()
+  await expect(
+    frame.getByRole('button', { name: 'Select file copy.txt' }),
+  ).toBeVisible()
+})
