@@ -3,6 +3,7 @@ import { useRuntime } from '../../app/runtimeContext'
 import { createDirectorySession } from './session'
 import { CreateEntryDialog, type CreateDestination } from './CreateEntryDialog'
 import { RenameEntryForm, type RenameTarget } from './RenameEntryForm'
+import { DeleteEntryDialog, type DeleteTarget } from './DeleteEntryDialog'
 import type { FileSystemNode, NodeId } from '../../core/filesystem/types'
 import type { WindowId } from '../../core/shared/ids'
 import styles from './FilesApp.module.css'
@@ -15,6 +16,10 @@ export default function FilesApp() {
   const [selected, setSelected] = useState<NodeId | null>(null)
   const [fileNotice, setFileNotice] = useState<string | null>(null)
   const heading = useRef<HTMLHeadingElement>(null)
+  const deleteButton = useRef<HTMLButtonElement>(null)
+  const deleteWindow = useRef<WindowId | null>(null)
+  const [deleting, setDeleting] = useState<DeleteTarget | null>(null)
+  const [deletionNotice, setDeletionNotice] = useState<string | null>(null)
   const renameWindow = useRef<WindowId | null>(null)
   const renameButton = useRef<HTMLButtonElement>(null)
   const [renaming, setRenaming] = useState<RenameTarget | null>(null)
@@ -22,7 +27,7 @@ export default function FilesApp() {
   const newFile = useRef<HTMLButtonElement>(null)
   const [creation, setCreation] = useState<CreateDestination | null>(null)
   const focusAfterMutation = useRef<{
-    kind: CreateDestination['kind'] | 'rename'
+    kind: CreateDestination['kind'] | 'rename' | 'delete' | 'delete-cancel'
     windowId: WindowId | null
   } | null>(null)
   const focusAfterNavigation = useRef<WindowId | null>(null)
@@ -41,19 +46,50 @@ export default function FilesApp() {
   }, [snapshot.status, snapshot.directoryId, runtime])
   useEffect(() => {
     const completed = focusAfterMutation.current
-    if (renaming || snapshot.status !== 'ready' || !completed) return
+    if (renaming || deleting || snapshot.status !== 'ready' || !completed)
+      return
     focusAfterMutation.current = null
     if (runtime.windows.getState().focusedId === completed.windowId) {
+      if (completed.kind === 'delete') {
+        heading.current?.focus()
+        return
+      }
       const trigger =
-        completed.kind === 'rename'
-          ? renameButton
-          : completed.kind === 'directory'
-            ? newFolder
-            : newFile
+        completed.kind === 'delete-cancel'
+          ? deleteButton
+          : completed.kind === 'rename'
+            ? renameButton
+            : completed.kind === 'directory'
+              ? newFolder
+              : newFile
       if (trigger.current?.disabled) heading.current?.focus()
       trigger.current?.focus()
     }
-  }, [snapshot, runtime, renaming])
+  }, [snapshot, runtime, renaming, deleting])
+  function stopDelete(clearSelection: boolean) {
+    if (clearSelection) {
+      setSelected(null)
+      setFileNotice(null)
+    }
+    focusAfterMutation.current = {
+      kind: clearSelection ? 'delete' : 'delete-cancel',
+      windowId: deleteWindow.current,
+    }
+    setDeleting(null)
+  }
+  function startDelete(entry: FileSystemNode) {
+    if (
+      renaming ||
+      creation ||
+      deleting ||
+      snapshot.status !== 'ready' ||
+      entry.metadata.protected
+    )
+      return
+    deleteWindow.current = runtime.windows.getState().focusedId
+    setDeleting({ id: entry.id, name: entry.name, kind: entry.kind })
+    setDeletionNotice(null)
+  }
   function stopRename() {
     setRenaming(null)
     focusAfterMutation.current = {
@@ -64,12 +100,14 @@ export default function FilesApp() {
   function startRename(entry: FileSystemNode) {
     if (
       renaming ||
+      deleting ||
       creation ||
       snapshot.status !== 'ready' ||
       !snapshot.directoryId ||
       entry.metadata.protected
     )
       return
+    setDeletionNotice(null)
     renameWindow.current = runtime.windows.getState().focusedId
     setSelected(entry.id)
     setFileNotice(null)
@@ -80,14 +118,22 @@ export default function FilesApp() {
     })
   }
   function navigate(id: NodeId) {
-    if (renaming) return
+    if (renaming || deleting) return
     focusAfterNavigation.current = runtime.windows.getState().focusedId
     setSelected(null)
     setFileNotice(null)
+    setDeletionNotice(null)
     void session.navigate(id)
   }
   function openCreation(kind: CreateDestination['kind']) {
-    if (renaming || snapshot.status !== 'ready' || !snapshot.directoryId) return
+    if (
+      renaming ||
+      deleting ||
+      snapshot.status !== 'ready' ||
+      !snapshot.directoryId
+    )
+      return
+    setDeletionNotice(null)
     setCreation({
       kind,
       parentId: snapshot.directoryId,
@@ -105,6 +151,7 @@ export default function FilesApp() {
             focusAfterNavigation.current = runtime.windows.getState().focusedId
             setSelected(null)
             setFileNotice(null)
+            setDeletionNotice(null)
             void session.home()
           }}
         >
@@ -146,6 +193,20 @@ export default function FilesApp() {
           }}
         >
           Rename
+        </button>
+        <button
+          ref={deleteButton}
+          disabled={
+            !!renaming ||
+            snapshot.status !== 'ready' ||
+            !selectedEntry ||
+            selectedEntry.metadata.protected
+          }
+          onClick={() => {
+            if (selectedEntry) startDelete(selectedEntry)
+          }}
+        >
+          Delete
         </button>
       </div>
       {renaming && (
@@ -265,7 +326,24 @@ export default function FilesApp() {
           )}
         </>
       )}
+      {deletionNotice && <p role="status">{deletionNotice}</p>}
       {fileNotice && selectedEntry && <p role="status">{fileNotice}</p>}
+      {deleting && (
+        <DeleteEntryDialog
+          target={deleting}
+          vfs={runtime.vfs}
+          returnFocus={deleteButton}
+          onCancel={() => stopDelete(false)}
+          onDeleted={() => {
+            setDeletionNotice(`“${deleting.name}” has been deleted.`)
+            stopDelete(true)
+          }}
+          onMissing={() => {
+            stopDelete(true)
+            void session.reload()
+          }}
+        />
+      )}
       {creation && (
         <CreateEntryDialog
           destination={creation}

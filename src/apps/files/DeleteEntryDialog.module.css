@@ -1,0 +1,21 @@
+.form {
+  width: min(320px, calc(100vw - 80px));
+  overflow-wrap: anywhere;
+}
+.confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: 13px;
+}
+.confirmation input {
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}

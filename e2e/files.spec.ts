@@ -340,3 +340,102 @@ test('inline rename controls fit mobile and protected folders cannot be renamed'
   await page.keyboard.press('F2')
   await expect(form).toBeHidden()
 })
+
+test('requires consent to delete a nonempty folder, updates another cwd and persists deletion', async ({
+  page,
+}) => {
+  await page.goto('/')
+  const launcher = page.getByRole('button', { name: 'Open Files', exact: true })
+  await launcher.click()
+  const frames = page.getByRole('region', { name: 'Files window' })
+  await frames
+    .first()
+    .getByRole('button', { name: 'Open folder Documents' })
+    .click()
+  await expect(frames.first().getByText('This folder is empty.')).toBeVisible()
+  await frames.first().getByRole('button', { name: 'New file' }).click()
+  const creation = page.getByRole('dialog', { name: 'New file' })
+  await creation.getByRole('textbox').fill('nested.txt')
+  await creation.getByRole('button', { name: 'Create', exact: true }).click()
+  await expect(creation).toBeHidden()
+  await launcher.click()
+  const active = frames.nth(1)
+  await active.getByRole('button', { name: 'Select folder Documents' }).click()
+  const trigger = active.getByRole('button', { name: 'Delete', exact: true })
+  await trigger.click()
+  const dialog = page.getByRole('dialog', { name: 'Delete item' })
+  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(dialog).toBeHidden()
+  await expect(trigger).toBeFocused()
+  await trigger.click()
+  await expect(dialog.getByRole('checkbox')).not.toBeChecked()
+  await expect(dialog).toContainText('Documents')
+  await dialog.getByRole('button', { name: 'Delete permanently' }).click()
+  await expect(dialog.getByRole('alert')).toContainText('not empty')
+  await expect(
+    frames.first().getByRole('button', { name: 'Select file nested.txt' }),
+  ).toBeVisible()
+  await dialog.getByRole('checkbox').check()
+  await dialog.getByRole('button', { name: 'Delete permanently' }).click()
+  await expect(dialog).toBeHidden()
+  await expect(active.getByRole('heading', { name: 'user' })).toBeFocused()
+  await expect(trigger).toBeDisabled()
+  await expect(active.getByText('“Documents” has been deleted.')).toBeVisible()
+  await expect(
+    frames.first().getByRole('heading', { name: 'user' }),
+  ).toBeVisible()
+  await expect(
+    frames.first().getByText(/previous folder was removed/),
+  ).toBeVisible()
+  await expect(
+    active.getByRole('button', { name: 'Open folder Documents' }),
+  ).toHaveCount(0)
+  await page.reload()
+  await launcher.click()
+  await expect(
+    frames.first().getByRole('button', { name: 'Open folder Desktop' }),
+  ).toBeVisible()
+  await expect(
+    frames.first().getByRole('button', { name: 'Open folder Documents' }),
+  ).toHaveCount(0)
+})
+
+test('file deletion supports Escape, mobile confirmation and protected selection', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 667 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open Files', exact: true }).click()
+  const frame = page.getByRole('region', { name: 'Files window' })
+  await expect(frame.getByRole('button', { name: 'New file' })).toBeEnabled()
+  await frame.getByRole('button', { name: 'New file' }).click()
+  const creation = page.getByRole('dialog', { name: 'New file' })
+  await creation.getByRole('textbox').fill('delete.txt')
+  await creation.getByRole('button', { name: 'Create', exact: true }).click()
+  await expect(creation).toBeHidden()
+  const trigger = frame.getByRole('button', { name: 'Delete', exact: true })
+  await expect(trigger).toBeEnabled()
+  await trigger.click()
+  const dialog = page.getByRole('dialog', { name: 'Delete item' })
+  await expect(dialog.getByRole('checkbox')).toHaveCount(0)
+  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeInViewport()
+  await expect(
+    dialog.getByRole('button', { name: 'Delete permanently' }),
+  ).toBeInViewport()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(trigger).toBeFocused()
+  await expect(
+    frame.getByRole('button', { name: 'Select file delete.txt' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await trigger.click()
+  await dialog.getByRole('button', { name: 'Delete permanently' }).click()
+  await expect(
+    frame.getByRole('button', { name: 'Select file delete.txt' }),
+  ).toHaveCount(0)
+  await expect(frame.getByRole('heading', { name: 'user' })).toBeFocused()
+  await frame.getByRole('button', { name: 'Workspace', exact: true }).click()
+  await frame.getByRole('button', { name: 'Select folder system' }).click()
+  await expect(trigger).toBeDisabled()
+})
