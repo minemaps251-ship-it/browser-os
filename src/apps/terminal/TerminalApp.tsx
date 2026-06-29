@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { useRuntime } from '../../app/runtimeContext'
+import { useCommandHistory } from './useCommandHistory'
 import { createTerminalSession } from './session'
 import styles from './TerminalApp.module.css'
 export default function TerminalApp() {
@@ -8,11 +9,12 @@ export default function TerminalApp() {
     createTerminalSession(runtime.vfs, runtime.refresh),
   )
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot)
-  const [draft, setDraft] = useState('')
+  const history = useCommandHistory()
+  const { draft, setDraft } = history
   const inputId = useId()
+  const historyHintId = useId()
   const output = useRef<HTMLDivElement>(null)
   const followOutput = useRef(true)
-  const composing = useRef(false)
   useEffect(() => {
     session.start()
     return session.stop
@@ -67,35 +69,35 @@ export default function TerminalApp() {
         className={styles.form}
         onSubmit={(event) => {
           event.preventDefault()
-          if (composing.current || snapshot.status !== 'ready' || !draft.trim())
+          if (
+            history.isComposing() ||
+            snapshot.status !== 'ready' ||
+            !draft.trim()
+          )
             return
           const command = draft
-          setDraft('')
+          history.submit()
           void session.run(command)
         }}
       >
         <label htmlFor={inputId}>Command</label>
+        <p id={historyHintId} className={styles.help}>
+          Use ↑ and ↓ to recall commands.
+        </p>
         <div className={styles.controls}>
           <input
             id={inputId}
+            aria-describedby={historyHintId}
             value={draft}
             maxLength={4096}
             autoComplete="off"
             spellCheck={false}
             readOnly={snapshot.status !== 'ready'}
             onChange={(event) => setDraft(event.target.value)}
-            onCompositionStart={() => {
-              composing.current = true
-            }}
-            onCompositionEnd={() => {
-              composing.current = false
-            }}
+            onCompositionStart={history.onCompositionStart}
+            onCompositionEnd={history.onCompositionEnd}
             onKeyDown={(event) => {
-              if (
-                event.key === 'Enter' &&
-                (event.nativeEvent.isComposing || composing.current)
-              )
-                event.preventDefault()
+              history.onKeyDown(event, snapshot.status === 'ready')
               if (
                 event.ctrlKey &&
                 event.key.toLowerCase() === 'c' &&

@@ -63,3 +63,51 @@ it('supports commands, IME-safe Enter, independent windows and sees Files/VFS ch
     act(() => runtime.dispose())
   }
 })
+
+it('recalls submitted errors and clear, preserves draft edits, and keeps windows independent', async () => {
+  const runtime = createBrowserRuntime()
+  const user = userEvent.setup()
+  const view = render(
+    <StrictMode>
+      <BrowserOS runtime={runtime} />
+    </StrictMode>,
+  )
+  try {
+    await user.click(screen.getByRole('button', { name: 'Open Terminal' }))
+    const first = await screen.findByRole('region', { name: 'Terminal window' })
+    const input = within(first).getByRole('textbox', { name: 'Command' })
+    await waitFor(() => expect(input).not.toHaveAttribute('readonly'))
+    await user.type(input, 'missing-command{Enter}')
+    await waitFor(() => expect(input).not.toHaveAttribute('readonly'))
+    expect(within(first).getByRole('log')).toHaveTextContent(
+      'command not found',
+    )
+    await user.type(input, 'clear{Enter}')
+    await waitFor(() =>
+      expect(within(first).getByRole('log')).toBeEmptyDOMElement(),
+    )
+    await user.type(input, 'echo draft')
+    await user.keyboard('{ArrowUp}')
+    expect(input).toHaveValue('clear')
+    await user.keyboard('{ArrowUp}')
+    expect(input).toHaveValue('missing-command')
+    expect(within(first).getByRole('log')).toBeEmptyDOMElement()
+    await user.keyboard('{ArrowDown}{ArrowDown}')
+    expect(input).toHaveValue('echo draft')
+    await user.keyboard('{ArrowUp}')
+    await user.clear(input)
+    await user.type(input, 'echo edited')
+    await user.keyboard('{ArrowUp}{ArrowDown}')
+    expect(input).toHaveValue('echo edited')
+    await user.click(screen.getByRole('button', { name: 'Open Terminal' }))
+    const second = screen.getAllByRole('region', { name: 'Terminal window' })[1]
+    const other = within(second).getByRole('textbox', { name: 'Command' })
+    await waitFor(() => expect(other).not.toHaveAttribute('readonly'))
+    await user.type(other, 'second draft{ArrowUp}')
+    expect(other).toHaveValue('second draft')
+    expect(input).toHaveValue('echo edited')
+  } finally {
+    view.unmount()
+    act(() => runtime.dispose())
+  }
+})
