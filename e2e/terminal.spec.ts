@@ -144,3 +144,126 @@ test('mkdir and touch update Files and persist a single file after concurrent to
     files.getByRole('button', { name: 'Select file note.txt' }),
   ).toHaveCount(1)
 })
+
+// Browser-only test records; each Playwright context has an isolated browser-os database.
+interface OutputRequest<T> {
+  result: T
+  error: unknown
+  onsuccess: (() => void) | null
+  onerror: (() => void) | null
+}
+interface OutputDatabase {
+  close(): void
+  transaction(
+    names: string[],
+    mode: 'readwrite',
+  ): {
+    error: unknown
+    oncomplete: (() => void) | null
+    onabort: (() => void) | null
+    objectStore(name: string): {
+      getAll(): OutputRequest<unknown[]>
+      get(key: string): OutputRequest<unknown>
+      put(value: unknown): unknown
+    }
+  }
+}
+declare const indexedDB: { open(name: string): OutputRequest<OutputDatabase> }
+test('cat reads persisted text after reload and echo remains literal; clear preserves cwd', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open Terminal', exact: true }).click()
+  const terminal = page.getByRole('region', { name: 'Terminal window' })
+  await command(terminal, 'touch "Documents/read me.txt"')
+  await page.evaluate(async () => {
+    const request = indexedDB.open('browser-os')
+    const database = await new Promise<OutputDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    try {
+      const tx = database.transaction(
+        ['nodes', 'contents', 'meta'],
+        'readwrite',
+      )
+      const done = new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve()
+        tx.onabort = () => reject(tx.error)
+      })
+      const nodes = tx.objectStore('nodes').getAll(),
+        totals = tx.objectStore('meta').get('totals')
+      const read = <T>(request: OutputRequest<T>) =>
+        new Promise<T>((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+      const [raw, rawTotals] = await Promise.all([read(nodes), read(totals)])
+      const records = raw as {
+        id: string
+        name: string
+        contentId: string
+        byteLength: number
+        metadataRevision: number
+        contentRevision: number
+      }[]
+      const node = records.find((node) => node.name === 'read me.txt')!
+      const counter = rawTotals as {
+        key: string
+        nodeCount: number
+        textBytes: number
+      }
+      const text = 'Hello from persistent VFS\n<script>unsafe()</script>'
+      const byteLength = text.length // ASCII fixture.
+      tx.objectStore('nodes').put({
+        ...node,
+        byteLength,
+        updatedAt: Date.now(),
+        metadataRevision: node.metadataRevision + 1,
+        contentRevision: node.contentRevision + 1,
+      })
+      tx.objectStore('contents').put({
+        id: node.contentId,
+        content: { kind: 'text', encoding: 'utf-8', text },
+      })
+      tx.objectStore('meta').put({
+        ...counter,
+        textBytes: counter.textBytes + byteLength - node.byteLength,
+      })
+      await done
+    } finally {
+      database.close()
+    }
+  })
+  await page.reload()
+  await page.getByRole('button', { name: 'Open Terminal', exact: true }).click()
+  await command(terminal, 'cd Documents')
+  await command(terminal, 'cat "read me.txt"')
+  await expect(terminal.getByRole('log')).toContainText(
+    'Hello from persistent VFS',
+  )
+  await expect(terminal.getByRole('log')).toContainText(
+    '<script>unsafe()</script>',
+  )
+  await expect(terminal.getByRole('log').locator('script')).toHaveCount(0)
+  await command(terminal, 'echo "literal > output.txt"')
+  await expect(terminal.getByRole('log')).toContainText('literal > output.txt')
+  await command(terminal, 'echo rejected > output.txt')
+  await expect(terminal.getByRole('log')).toContainText('Shell operators')
+  await command(terminal, 'ls')
+  await expect(
+    terminal.getByRole('log').locator('pre').last(),
+  ).not.toContainText('output.txt')
+  const input = terminal.getByRole('textbox', { name: 'Command' })
+  await input.fill('clear')
+  await input.press('Enter')
+  await expect(terminal.getByRole('log')).toBeEmpty()
+  await expect(input).not.toHaveAttribute('readonly', '')
+  await expect(
+    terminal.getByText('/home/user/Documents', { exact: true }),
+  ).toBeVisible()
+  await command(terminal, 'cat "read me.txt"')
+  await expect(terminal.getByRole('log')).toContainText(
+    'Hello from persistent VFS',
+  )
+})

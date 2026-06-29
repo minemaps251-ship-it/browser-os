@@ -25,7 +25,7 @@ export default function TerminalApp() {
     <div className={styles.app}>
       <p className={styles.path}>{snapshot.path || 'Starting terminal…'}</p>
       <p className={styles.help}>
-        Use pwd, ls, cd, mkdir, touch or help. This terminal works with your
+        Use help to see available commands. This terminal works with your
         BrowserOS files.
       </p>
       {snapshot.notice && (

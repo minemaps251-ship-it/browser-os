@@ -7,6 +7,7 @@ export interface CommandResult {
   readonly exitCode: number
   readonly directoryId?: NodeId
   readonly mutationStarted?: boolean
+  readonly clearTranscript?: boolean
 }
 export type TerminalVfs = Pick<
   VirtualFileSystem,
@@ -17,6 +18,7 @@ export type TerminalVfs = Pick<
   | 'subscribe'
   | 'createDirectory'
   | 'touchFile'
+  | 'readFile'
 >
 const fail = (stderr: string, exitCode = 1): CommandResult => ({
   stdout: '',
@@ -48,20 +50,45 @@ export async function executeCommand(
   const [command, ...args] = tokens
   if (signal.aborted) return fail('Command cancelled.', 130)
   if (!command) return { stdout: '', stderr: '', exitCode: 0 }
-  if (!['pwd', 'ls', 'cd', 'help', 'mkdir', 'touch'].includes(command))
+  if (
+    ![
+      'pwd',
+      'ls',
+      'cd',
+      'help',
+      'mkdir',
+      'touch',
+      'cat',
+      'echo',
+      'clear',
+    ].includes(command)
+  )
     return fail(
       `${command}: command not found. Use help to list commands.`,
       127,
     )
+  if (command === 'echo')
+    return { stdout: args.join(' '), stderr: '', exitCode: 0 }
+  if (command === 'clear')
+    return args.length
+      ? fail('clear: too many arguments.', 2)
+      : { stdout: '', stderr: '', exitCode: 0, clearTranscript: true }
+  if (command === 'cat' && args.length !== 1)
+    return fail('cat: expected one path.', 2)
   const mutation = command === 'mkdir' || command === 'touch'
   if (mutation && args.length !== 1)
     return fail(`${command}: expected one path.`, 2)
-  if (args.length > (command === 'ls' || command === 'cd' || mutation ? 1 : 0))
+  if (
+    args.length >
+    (command === 'ls' || command === 'cd' || command === 'cat' || mutation
+      ? 1
+      : 0)
+  )
     return fail(`${command}: too many arguments.`, 2)
   if (command === 'help')
     return {
       stdout:
-        'pwd — show the current path\nls [path] — list files and folders\ncd [path] — change folder (home by default)\nmkdir <path> — create a folder\ntouch <path> — create or update a file\nhelp — show commands\nQuote paths containing spaces. Shell operators and expansion are not supported.',
+        'pwd — show the current path\nls [path] — list files and folders\ncd [path] — change folder (home by default)\nmkdir <path> — create a folder\ntouch <path> — create or update a file\ncat <path> — read a text file\necho [args…] — print literal text\nclear — clear this window output\nhelp — show commands\nQuote paths containing spaces. Shell operators and expansion are not supported.',
       stderr: '',
       exitCode: 0,
     }
@@ -126,6 +153,13 @@ export async function executeCommand(
     )
     if (signal.aborted) return fail('Command cancelled.', 130)
     if (!target.ok) return fail(`${command}: ${diagnostic(target.error.code)}`)
+    if (command === 'cat') {
+      const document = await vfs.readFile(target.value)
+      if (signal.aborted) return fail('Command cancelled.', 130)
+      return document.ok
+        ? { stdout: document.value.content.text, stderr: '', exitCode: 0 }
+        : fail(`cat: ${diagnostic(document.error.code)}`)
+    }
     if (command === 'cd') {
       const node = await vfs.stat(target.value)
       if (signal.aborted) return fail('Command cancelled.', 130)

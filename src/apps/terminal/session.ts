@@ -166,7 +166,13 @@ export function createTerminalSession(
           exitCode: 130,
         })
       else {
-        append(command, result)
+        if (result.clearTranscript && result.exitCode === 0)
+          publish({
+            entries: Object.freeze([]),
+            trimmed: false,
+            notice: 'Terminal output cleared.',
+          })
+        else append(command, result)
         if (result.directoryId) publish({ directoryId: result.directoryId })
       }
       const located = await location(snapshot.directoryId, token)
