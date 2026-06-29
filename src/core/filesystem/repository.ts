@@ -41,6 +41,7 @@ export interface VfsRepository extends VfsReadRepository {
     content: FileContent,
     options: WriteOptions,
   ): Promise<VfsResult<WriteReceipt>>
+  touchFile(parentId: NodeId, name: string): Promise<VfsResult<NodeId>>
   createDirectory(parentId: NodeId, name: string): Promise<VfsResult<NodeId>>
   createFile(
     parentId: NodeId,

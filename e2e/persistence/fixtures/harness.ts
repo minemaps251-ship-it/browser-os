@@ -357,3 +357,4 @@ import './copyHarness'
 import './removeHarness'
 
 import './contractHarness'
+import './touchHarness'

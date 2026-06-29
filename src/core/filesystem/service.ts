@@ -22,6 +22,8 @@ export function createVfsService(repository: VfsRepository) {
     rename: (id: NodeId, name: string) => repository.rename(id, name),
     move: (id: NodeId, destination: NodeId, newName?: string) =>
       repository.move(id, destination, newName),
+    touchFile: (parentId: NodeId, name: string) =>
+      repository.touchFile(parentId, name),
     createDirectory: (parentId: NodeId, name: string) =>
       repository.createDirectory(parentId, name),
     createFile: (parentId: NodeId, name: string, content: FileContent) =>

@@ -194,6 +194,7 @@ export function createMemoryVfsRepository(options: {
     name: string,
     content?: FileContent,
     mime = 'text/plain',
+    touch = false,
   ): VfsResult<NodeId> {
     const parent = state.nodes.get(parentId)
     if (!parent) return failure('NOT_FOUND', 'Parent does not exist.', parentId)
@@ -208,6 +209,40 @@ export function createMemoryVfsRepository(options: {
     const normalized = normalizeName(name)
     if (!normalized.ok) return normalized
     const siblings = state.children.get(parentId)
+    const existingId = siblings?.get(normalized.value)
+    if (touch && existingId) {
+      const node = state.nodes.get(existingId)
+      if (!node || node.kind !== 'file')
+        return failure('NOT_FILE', 'Existing item is not a file.', existingId)
+      if (node.metadata.protected)
+        return failure('PROTECTED', 'File is read-only.', existingId)
+      if (node.metadataRevision >= Number.MAX_SAFE_INTEGER)
+        return failure('CORRUPT_DATA', 'Revision cannot advance.', existingId)
+      try {
+        const now = options.now()
+        if (!Number.isFinite(now))
+          return failure('CORRUPT_DATA', 'Timestamp is invalid.', existingId)
+        const event = prepareChange({ metadataIds: [existingId] })
+        const nodes = new Map(state.nodes)
+        nodes.set(
+          existingId,
+          Object.freeze({
+            ...node,
+            updatedAt: now,
+            metadataRevision: node.metadataRevision + 1,
+          }),
+        )
+        state = { ...state, nodes }
+        changes.emit(event)
+        return { ok: true, value: existingId }
+      } catch {
+        return failure(
+          'STORAGE_UNAVAILABLE',
+          'Touch could not complete.',
+          existingId,
+        )
+      }
+    }
     if (siblings?.has(normalized.value))
       return failure(
         'ALREADY_EXISTS',
@@ -624,6 +659,15 @@ export function createMemoryVfsRepository(options: {
           id,
         )
       }
+    },
+    async touchFile(parentId, name) {
+      return create(
+        parentId,
+        name,
+        { kind: 'text', encoding: 'utf-8', text: '' },
+        'text/plain',
+        true,
+      )
     },
     async createDirectory(parentId, name) {
       return create(parentId, name)

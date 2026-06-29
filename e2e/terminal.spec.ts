@@ -106,3 +106,41 @@ test('Terminal input, output and controls remain reachable on mobile', async ({
     frame.getByRole('button', { name: 'Close Terminal', exact: true }),
   ).toBeInViewport()
 })
+
+test('mkdir and touch update Files and persist a single file after concurrent touches and reload', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open Files', exact: true }).click()
+  const files = page.getByRole('region', { name: 'Files window' })
+  await files.getByRole('button', { name: 'Open folder Documents' }).click()
+  await page.getByRole('button', { name: 'Open Terminal', exact: true }).click()
+  const terminal = page.getByRole('region', { name: 'Terminal window' })
+  await command(terminal, 'mkdir "Documents/My folder"')
+  await expect(
+    files.getByRole('button', { name: 'Open folder My folder' }),
+  ).toBeVisible()
+  await command(terminal, 'touch "Documents/My folder/note.txt"')
+  await command(terminal, 'touch "Documents/My folder/note.txt"')
+  await command(terminal, 'ls "Documents/My folder"')
+  await expect(terminal.getByRole('log')).toContainText('note.txt')
+  await command(terminal, 'mkdir Documents')
+  await expect(terminal.getByRole('log')).toContainText('already exists')
+  await command(terminal, 'touch /system/blocked.txt')
+  await expect(terminal.getByRole('log')).toContainText('protected')
+  await page
+    .getByRole('navigation', { name: 'Running applications' })
+    .getByRole('button', { name: 'Files', exact: true })
+    .click()
+  await files.getByRole('button', { name: 'Open folder My folder' }).click()
+  await expect(
+    files.getByRole('button', { name: 'Select file note.txt' }),
+  ).toHaveCount(1)
+  await page.reload()
+  await page.getByRole('button', { name: 'Open Files', exact: true }).click()
+  await files.getByRole('button', { name: 'Open folder Documents' }).click()
+  await files.getByRole('button', { name: 'Open folder My folder' }).click()
+  await expect(
+    files.getByRole('button', { name: 'Select file note.txt' }),
+  ).toHaveCount(1)
+})

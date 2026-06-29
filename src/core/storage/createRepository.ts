@@ -17,7 +17,7 @@ import { ROOT_NODE_ID, VFS_LIMITS } from '../filesystem/policy'
 import { createVfsChangeDispatcher } from '../filesystem/changes'
 import { createIndexedDbReadRepository } from './readRepository'
 import { createTransactionReader } from './transactionReader'
-import { corrupt, decodeContent } from './records'
+import { corrupt, decodeContent, decodeNode } from './records'
 import { decodeTotals } from './totals'
 import { INDEXES, STORES } from './schema'
 import { requestResult, transactionDone } from './requests'
@@ -47,6 +47,7 @@ export function createIndexedDbVfsRepository(
     name: string | undefined,
     content?: FileContent,
     sourceId?: NodeId,
+    touch = false,
   ): Promise<VfsResult<NodeId>> {
     let normalized = normalizeName(name ?? '')
     let prepared =
@@ -121,6 +122,54 @@ export function createIndexedDbVfsRepository(
         requestResult(query.store.count()),
         requestResult<unknown>(meta.get('schema')),
       ])
+      if (touch && sibling !== undefined) {
+        const node = decodeNode(sibling)
+        if (!node.ok) return await reject(node)
+        if (node.value.kind !== 'file')
+          return await reject(
+            failure('NOT_FILE', 'Existing item is not a file.'),
+          )
+        if (node.value.metadata.protected)
+          return await reject(failure('PROTECTED', 'File is read-only.'))
+        const totals = decodeTotals(rawTotals, count, schema)
+        if (!totals.ok) return await reject(totals)
+        const raw = await requestResult<unknown>(
+          contents.get(node.value.contentId),
+        )
+        const decoded = decodeContent(raw, node.value)
+        if (!decoded.ok) return await reject(decoded)
+        if (node.value.metadataRevision >= Number.MAX_SAFE_INTEGER)
+          return await reject(
+            corrupt('Revision cannot advance.', node.value.id),
+          )
+        const now = options.now(),
+          operationId = options.createOperationId()
+        if (!Number.isFinite(now) || !operationId?.trim())
+          return await reject(
+            corrupt('Timestamp or operation identity is invalid.'),
+          )
+        await requestResult(
+          query.store.put({
+            ...node.value,
+            updatedAt: now,
+            metadataRevision: node.value.metadataRevision + 1,
+          }),
+        )
+        const error = await completion
+        if (error) throw error
+        changes.emit(
+          Object.freeze({
+            operationId,
+            originRequestId: operationId,
+            metadataIds: Object.freeze([node.value.id]),
+            contentIds: Object.freeze([]),
+            pathIds: Object.freeze([]),
+            directoryIds: Object.freeze([]),
+            removedIds: Object.freeze([]),
+          }),
+        )
+        return { ok: true, value: node.value.id }
+      }
       if (sibling !== undefined)
         return await reject(
           failure('ALREADY_EXISTS', 'A sibling already exists.'),
@@ -236,6 +285,14 @@ export function createIndexedDbVfsRepository(
     writeFile: createIndexedDbWriteFile(connection, options, changes.emit),
     copyFile: (id, destination, newName) =>
       create(destination, newName, undefined, id),
+    touchFile: (parent, name) =>
+      create(
+        parent,
+        name,
+        { kind: 'text', encoding: 'utf-8', text: '' },
+        undefined,
+        true,
+      ),
     createDirectory: (parent, name) => create(parent, name),
     createFile: (parent, name, content) =>
       content

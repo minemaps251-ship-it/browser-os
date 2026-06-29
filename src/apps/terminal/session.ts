@@ -13,6 +13,7 @@ export interface TranscriptEntry extends CommandResult {
 }
 export interface TerminalSnapshot {
   readonly status: 'loading' | 'ready' | 'busy' | 'error'
+  readonly cancellable: boolean
   readonly directoryId: NodeId | null
   readonly path: string
   readonly entries: readonly TranscriptEntry[]
@@ -25,6 +26,7 @@ export function createTerminalSession(
 ) {
   let snapshot: TerminalSnapshot = Object.freeze({
     status: 'loading',
+    cancellable: false,
     directoryId: null,
     path: '',
     entries: Object.freeze([]),
@@ -135,7 +137,7 @@ export function createTerminalSession(
     const token = ++generation
     const active = new AbortController()
     controller = active
-    publish({ status: 'busy', notice: null })
+    publish({ status: 'busy', cancellable: true, notice: null })
     const valid = () => running && generation === token
     try {
       if (!(await location(snapshot.directoryId, token)) || !valid())
@@ -147,6 +149,9 @@ export function createTerminalSession(
             snapshot.directoryId!,
             vfs,
             active.signal,
+            () => {
+              if (valid()) publish({ cancellable: false })
+            },
           )
         : {
             stdout: '',
@@ -154,7 +159,7 @@ export function createTerminalSession(
             exitCode: 2,
           }
       if (!valid()) return false
-      if (active.signal.aborted)
+      if (active.signal.aborted && !result.mutationStarted)
         append(command, {
           stdout: '',
           stderr: 'Command cancelled.',
@@ -168,7 +173,10 @@ export function createTerminalSession(
       if (valid() && located) publish({ status: 'ready' })
       return true
     } finally {
-      if (controller === active) controller = null
+      if (controller === active) {
+        controller = null
+        if (valid()) publish({ cancellable: false })
+      }
     }
   }
   return {
@@ -181,7 +189,7 @@ export function createTerminalSession(
     },
     run,
     cancel: () => {
-      controller?.abort()
+      if (snapshot.cancellable) controller?.abort()
     },
     retry: refreshPath,
     start: () => {

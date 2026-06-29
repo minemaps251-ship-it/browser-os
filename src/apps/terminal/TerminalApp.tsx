@@ -25,7 +25,8 @@ export default function TerminalApp() {
     <div className={styles.app}>
       <p className={styles.path}>{snapshot.path || 'Starting terminal…'}</p>
       <p className={styles.help}>
-        Use pwd, ls, cd or help. This terminal works with your BrowserOS files.
+        Use pwd, ls, cd, mkdir, touch or help. This terminal works with your
+        BrowserOS files.
       </p>
       {snapshot.notice && (
         <p role={snapshot.status === 'error' ? 'alert' : 'status'}>
@@ -99,6 +100,7 @@ export default function TerminalApp() {
                 event.ctrlKey &&
                 event.key.toLowerCase() === 'c' &&
                 snapshot.status === 'busy' &&
+                snapshot.cancellable &&
                 event.currentTarget.selectionStart ===
                   event.currentTarget.selectionEnd
               ) {
@@ -114,13 +116,23 @@ export default function TerminalApp() {
             Run
           </button>
           {snapshot.status === 'busy' && (
-            <button type="button" onClick={session.cancel}>
+            <button
+              type="button"
+              disabled={!snapshot.cancellable}
+              onClick={session.cancel}
+            >
               Cancel command
             </button>
           )}
         </div>
       </form>
-      {snapshot.status === 'busy' && <p role="status">Running command…</p>}
+      {snapshot.status === 'busy' && (
+        <p role="status">
+          {snapshot.cancellable
+            ? 'Running command…'
+            : 'Saving change… Please wait for the result.'}
+        </p>
+      )}
     </div>
   )
 }

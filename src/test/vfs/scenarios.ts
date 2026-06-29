@@ -156,6 +156,73 @@ function defineCases() {
     cases.push({ name, run })
   }
   add(
+    'touch is atomic for concurrent creation and preserves existing content identity',
+    async (context) => {
+      const { vfs, docs } = context
+      const events: VfsChange[] = []
+      const off = vfs.subscribe({ kind: 'all' }, (event) => {
+        events.push(event)
+      })
+      try {
+        const touched = await Promise.all(
+          Array.from({ length: 4 }, () => vfs.touchFile(docs, 'shared.txt')),
+        )
+        const ids = touched.map(value)
+        assertEqual(new Set(ids).size, 1)
+        const id = ids[0]
+        const empty = value(await vfs.readFile(id))
+        assertEqual(empty.content.text, '')
+        assertEqual(empty.node.metadataRevision, 4)
+        value(
+          await vfs.writeFile(id, text('Keep 🌍'), {
+            expectedContentRevision: empty.contentRevision,
+            requestId: 'touch-contract',
+          }),
+        )
+        const before = value(await vfs.readFile(id))
+        const parent = value(await vfs.stat(docs))
+        events.length = 0
+        assertEqual(value(await vfs.touchFile(docs, 'shared.txt')), id)
+        const after = value(await vfs.readFile(id))
+        assertEqual(after.content, before.content)
+        assertEqual(after.node.contentId, before.node.contentId)
+        assertEqual(after.node.byteLength, before.node.byteLength)
+        assertEqual(after.contentRevision, before.contentRevision)
+        assertEqual(
+          after.node.metadataRevision,
+          before.node.metadataRevision + 1,
+        )
+        assertEqual(value(await vfs.stat(docs)), parent)
+        assertLength(events, 1)
+        assertEqual(events[0].contentIds, [])
+        assertEqual(events[0].metadataIds, [id])
+        const folder = value(await vfs.createDirectory(docs, 'folder'))
+        events.length = 0
+        assertMatch(await vfs.touchFile(docs, 'folder'), {
+          ok: false,
+          error: { code: 'NOT_FILE' },
+        })
+        assertMatch(await vfs.touchFile(folder, 'bad/name'), {
+          ok: false,
+          error: { code: 'INVALID_NAME' },
+        })
+        assertMatch(await vfs.touchFile('missing' as NodeId, 'file'), {
+          ok: false,
+          error: { code: 'NOT_FOUND' },
+        })
+        const system = value(await vfs.resolve('/system', ROOT_NODE_ID))
+        assertMatch(await vfs.touchFile(system, 'file'), {
+          ok: false,
+          error: { code: 'PROTECTED' },
+        })
+        assertLength(events, 0)
+        await auditVfs(vfs, context.checkpoint)
+      } finally {
+        off()
+      }
+    },
+  )
+  add(
     'composes create/write/rename/move/copy/remove with stable identity and coherent events',
     async (context) => {
       const events: VfsChange[] = []
