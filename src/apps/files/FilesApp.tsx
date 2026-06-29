@@ -16,6 +16,10 @@ export default function FilesApp() {
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot)
   const [selected, setSelected] = useState<NodeId | null>(null)
   const [fileNotice, setFileNotice] = useState<string | null>(null)
+  const [opening, setOpening] = useState(false)
+  const [openError, setOpenError] = useState<string | null>(null)
+  const openPending = useRef(false)
+  const mounted = useRef(false)
   const heading = useRef<HTMLHeadingElement>(null)
   const copyButton = useRef<HTMLButtonElement>(null)
   const moveButton = useRef<HTMLButtonElement>(null)
@@ -43,8 +47,12 @@ export default function FilesApp() {
   } | null>(null)
   const focusAfterNavigation = useRef<WindowId | null>(null)
   useEffect(() => {
+    mounted.current = true
     session.start()
-    return session.stop
+    return () => {
+      mounted.current = false
+      session.stop()
+    }
   }, [session])
   useEffect(() => {
     if (snapshot.status === 'ready' && focusAfterNavigation.current) {
@@ -83,6 +91,23 @@ export default function FilesApp() {
       trigger.current?.focus()
     }
   }, [snapshot, runtime, renaming, deleting, transferring])
+  async function openFile(id: NodeId) {
+    if (openPending.current || renaming || creation || deleting || transferring)
+      return
+    openPending.current = true
+    setOpening(true)
+    setOpenError(null)
+    try {
+      const result = await runtime.openFile(id)
+      if (mounted.current && !result.ok) setOpenError(result.message)
+    } catch {
+      if (mounted.current)
+        setOpenError('This file could not be opened. Please try again.')
+    } finally {
+      openPending.current = false
+      if (mounted.current) setOpening(false)
+    }
+  }
   function stopTransfer(destination?: NodeId) {
     if (!transferring) return
     if (destination) {
@@ -178,6 +203,7 @@ export default function FilesApp() {
     focusAfterNavigation.current = runtime.windows.getState().focusedId
     setSelected(null)
     setFileNotice(null)
+    setOpenError(null)
     setOperationNotice(null)
     void session.navigate(id)
   }
@@ -207,6 +233,7 @@ export default function FilesApp() {
           onClick={() => {
             focusAfterNavigation.current = runtime.windows.getState().focusedId
             setSelected(null)
+            setOpenError(null)
             setFileNotice(null)
             setOperationNotice(null)
             void session.home()
@@ -292,7 +319,17 @@ export default function FilesApp() {
         >
           Move
         </button>
+        <button
+          disabled={opening || !!renaming || selectedEntry?.kind !== 'file'}
+          onClick={() => {
+            if (selectedEntry?.kind === 'file') void openFile(selectedEntry.id)
+          }}
+        >
+          Open
+        </button>
       </div>
+      {opening && <p role="status">Opening file…</p>}
+      {openError && <p role="alert">{openError}</p>}
       {renaming && (
         <RenameEntryForm
           target={renaming}
@@ -351,17 +388,27 @@ export default function FilesApp() {
                     }
                     disabled={!!renaming}
                     onKeyDown={(event) => {
+                      if (event.key === 'Enter' && entry.kind === 'file') {
+                        event.preventDefault()
+                        setSelected(entry.id)
+                        void openFile(entry.id)
+                        return
+                      }
                       if (event.key === 'F2') {
                         event.preventDefault()
                         startRename(entry)
                       }
                     }}
+                    onDoubleClick={() => {
+                      if (entry.kind === 'file') void openFile(entry.id)
+                    }}
                     onClick={() => {
                       if (entry.kind === 'directory') navigate(entry.id)
                       else {
                         setSelected(entry.id)
+                        setOpenError(null)
                         setFileNotice(
-                          'File opening will be available when a text application is added.',
+                          'Use Open to open this file in its default application.',
                         )
                       }
                     }}
@@ -392,6 +439,7 @@ export default function FilesApp() {
                       disabled={!!renaming}
                       onClick={() => {
                         setSelected(entry.id)
+                        setOpenError(null)
                         setFileNotice(null)
                       }}
                       onKeyDown={(event) => {

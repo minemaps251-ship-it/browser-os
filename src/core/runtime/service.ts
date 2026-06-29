@@ -1,3 +1,4 @@
+import type { ApplicationLaunchInput } from '../applications/launchInput'
 import type { Position } from '../windows/geometry'
 import type { ApplicationRegistry } from '../applications/registry'
 import type { Size } from '../shared/geometry'
@@ -14,6 +15,7 @@ export interface Process {
   readonly appId: AppId
   readonly status: 'starting' | 'running' | 'crashed'
   readonly startedAt: number
+  readonly launchInput: ApplicationLaunchInput
 }
 export type LaunchResult =
   | { ok: true; windowId: WindowId; processId: ProcessId }
@@ -23,7 +25,14 @@ interface Dependencies {
   ids: IdFactory
   now: () => number
   getUsableArea: () => Size
-  load: (appId: AppId, scope: ProcessScope) => Promise<void>
+  load: (
+    appId: AppId,
+    scope: ProcessScope,
+    context: {
+      readonly processId: ProcessId
+      readonly input: ApplicationLaunchInput
+    },
+  ) => Promise<void>
   onCleanupError: (error: unknown) => void
 }
 
@@ -34,7 +43,10 @@ export function createRuntime(deps: Dependencies) {
   const pending = new Map<AppId, Promise<LaunchResult>>()
   let disposed = false
 
-  async function start(appId: AppId): Promise<LaunchResult> {
+  async function start(
+    appId: AppId,
+    launchInput: ApplicationLaunchInput,
+  ): Promise<LaunchResult> {
     const manifest = deps.registry.get(appId)
     if (!manifest || disposed)
       return { ok: false, message: 'Application is unavailable.' }
@@ -46,10 +58,11 @@ export function createRuntime(deps: Dependencies) {
       appId,
       status: 'starting',
       startedAt,
+      launchInput,
     })
     scopes.set(processId, scope)
     try {
-      await deps.load(appId, scope)
+      await deps.load(appId, scope, { processId, input: launchInput })
       if (disposed || scope.signal.aborted)
         throw new Error('Application launch was cancelled.')
       const windowId = deps.ids.window()
@@ -71,6 +84,7 @@ export function createRuntime(deps: Dependencies) {
         appId,
         status: 'running',
         startedAt,
+        launchInput,
       })
       return { ok: true, windowId, processId }
     } catch {
@@ -85,10 +99,18 @@ export function createRuntime(deps: Dependencies) {
       }
     }
   }
-  function launch(appId: AppId): Promise<LaunchResult> {
+  function launch(
+    appId: AppId,
+    input: ApplicationLaunchInput = { kind: 'default' },
+  ): Promise<LaunchResult> {
     if (disposed)
       return Promise.resolve({ ok: false, message: 'BrowserOS is stopped.' })
     const manifest = deps.registry.get(appId)
+    if (input.kind === 'file' && manifest?.instancePolicy !== 'multiple')
+      return Promise.resolve({
+        ok: false,
+        message: 'Application does not accept file launches.',
+      })
     if (manifest?.instancePolicy === 'singleton') {
       const existing = Object.values(windows.read.getState().byId).find(
         (window) => window?.appId === appId,
@@ -104,7 +126,12 @@ export function createRuntime(deps: Dependencies) {
       const starting = pending.get(appId)
       if (starting) return starting
     }
-    const promise = start(appId)
+    const launchInput: ApplicationLaunchInput = Object.freeze(
+      input.kind === 'file'
+        ? { kind: 'file', fileId: input.fileId }
+        : { kind: 'default' },
+    )
+    const promise = start(appId, launchInput)
     if (manifest?.instancePolicy === 'singleton') {
       pending.set(appId, promise)
       void promise.finally(() => {

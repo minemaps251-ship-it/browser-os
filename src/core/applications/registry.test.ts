@@ -47,3 +47,51 @@ it('accepts explicit Dock pinning for a multi-instance app', () => {
     createRegistry([{ ...firstApp, dock: 'pinned' }]).get(firstApp.id)?.dock,
   ).toBe('pinned')
 })
+
+it('selects explicit MIME defaults independently of registration order and freezes association metadata', () => {
+  const associations = [{ mime: 'text/plain', default: true }]
+  const defaultApp = { ...firstApp, fileAssociations: associations }
+  const other = {
+    ...firstApp,
+    id: 'other' as AppId,
+    fileAssociations: [{ mime: 'text/plain' }],
+  }
+  const registry = createRegistry([other, defaultApp])
+  associations[0].mime = 'changed'
+  expect(registry.fileHandler('text/plain')?.id).toBe(firstApp.id)
+  expect(Object.isFrozen(registry.get(firstApp.id)?.fileAssociations)).toBe(
+    true,
+  )
+  expect(
+    Object.isFrozen(registry.get(firstApp.id)?.fileAssociations?.[0]),
+  ).toBe(true)
+  expect(createRegistry([other]).fileHandler('text/plain')?.id).toBe(other.id)
+  expect(
+    createRegistry([other, { ...other, id: 'third' as AppId }]).fileHandler(
+      'text/plain',
+    ),
+  ).toBeUndefined()
+})
+it('rejects duplicate defaults, invalid MIME, duplicate MIME and singleton file handlers', () => {
+  const handler = {
+    ...firstApp,
+    fileAssociations: [{ mime: 'text/plain', default: true }],
+  }
+  expect(() =>
+    createRegistry([handler, { ...handler, id: 'other' as AppId }]),
+  ).toThrow('association')
+  expect(() =>
+    createRegistry([{ ...handler, instancePolicy: 'singleton' }]),
+  ).toThrow('association')
+  expect(() =>
+    createRegistry([{ ...handler, fileAssociations: [{ mime: '*' }] }]),
+  ).toThrow('association')
+  expect(() =>
+    createRegistry([
+      {
+        ...handler,
+        fileAssociations: [{ mime: 'text/plain' }, { mime: 'text/plain' }],
+      },
+    ]),
+  ).toThrow('association')
+})

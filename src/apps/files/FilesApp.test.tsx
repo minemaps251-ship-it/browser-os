@@ -57,7 +57,7 @@ it('supports keyboard folder navigation, two independent windows and local VFS u
     await user.click(file)
     expect(file).toHaveAttribute('aria-pressed', 'true')
     expect(
-      within(second).getByText(/File opening will be available/),
+      within(second).getByText(/Use Open to open this file/),
     ).toBeInTheDocument()
     expect(
       within(first).queryByRole('button', { name: 'Select file hello.txt' }),

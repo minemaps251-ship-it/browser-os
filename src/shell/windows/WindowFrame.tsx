@@ -33,7 +33,7 @@ export function WindowFrame({ id }: { id: WindowId }) {
     }
   }, [focused, frame, id, window?.status])
   if (!window) return null
-  const content = runtime.getContent(window.appId)
+  const content = runtime.getContent(window.processId)
   const maximized = window.placement.kind === 'maximized'
   function toggleMaximize() {
     if (maximized) runtime.restoreWindowBounds(id)
