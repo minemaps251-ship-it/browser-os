@@ -318,3 +318,70 @@ test('cp and mv update Files, reject overwrite and retain moved folders after re
     'copy file.txt',
   )
 })
+
+test('rm requires recursion, updates Files and recovers another Terminal cwd durably', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open Files', exact: true }).click()
+  const files = page.getByRole('region', { name: 'Files window' })
+  await files.getByRole('button', { name: 'Open folder Documents' }).click()
+  const launcher = page.getByRole('button', {
+    name: 'Open Terminal',
+    exact: true,
+  })
+  await launcher.click()
+  const frames = page.getByRole('region', { name: 'Terminal window' })
+  await command(frames.first(), 'mkdir "Documents/remove me"')
+  await command(frames.first(), 'touch "Documents/remove me/keep.txt"')
+  await command(frames.first(), 'touch Documents/survivor.txt')
+  await command(frames.first(), 'touch Documents/disposable.txt')
+  await command(frames.first(), 'rm Documents/disposable.txt')
+  await expect(
+    files.getByRole('button', { name: 'Select file disposable.txt' }),
+  ).toHaveCount(0)
+  await command(frames.first(), 'cd "Documents/remove me"')
+  await launcher.click()
+  await expect(frames).toHaveCount(2)
+  await command(frames.nth(1), 'rm "Documents/remove me"')
+  await expect(frames.nth(1).getByRole('log')).toContainText(
+    'Folder is not empty',
+  )
+  await expect(
+    files.getByRole('button', { name: 'Open folder remove me' }),
+  ).toBeVisible()
+  await command(frames.nth(1), 'ls "Documents/remove me"')
+  await expect(
+    frames.nth(1).getByRole('log').locator('pre').last(),
+  ).toContainText('keep.txt')
+  await command(frames.nth(1), 'rm -r "Documents/remove me"')
+  await expect(
+    files.getByRole('button', { name: 'Open folder remove me' }),
+  ).toHaveCount(0)
+  await expect(
+    frames
+      .first()
+      .getByRole('paragraph')
+      .filter({ hasText: /^\/home\/user$/ }),
+  ).toBeVisible()
+  await expect(
+    frames
+      .first()
+      .getByRole('status')
+      .filter({ hasText: 'current folder was removed' }),
+  ).toBeVisible()
+  await command(frames.nth(1), 'rm -r /system')
+  await expect(frames.nth(1).getByRole('log')).toContainText('protected')
+  await page.reload()
+  await page.getByRole('button', { name: 'Open Files', exact: true }).click()
+  await files.getByRole('button', { name: 'Open folder Documents' }).click()
+  await expect(
+    files.getByRole('button', { name: 'Select file survivor.txt' }),
+  ).toBeVisible()
+  await expect(
+    files.getByRole('button', { name: 'Open folder remove me' }),
+  ).toHaveCount(0)
+  await expect(
+    files.getByRole('button', { name: 'Select file disposable.txt' }),
+  ).toHaveCount(0)
+})

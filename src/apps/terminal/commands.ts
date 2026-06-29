@@ -21,6 +21,7 @@ export type TerminalVfs = Pick<
   | 'readFile'
   | 'copyFile'
   | 'move'
+  | 'remove'
 >
 const fail = (stderr: string, exitCode = 1): CommandResult => ({
   stdout: '',
@@ -32,6 +33,8 @@ function diagnostic(code: VfsErrorCode) {
   if (code === 'NOT_DIRECTORY') return 'Not a folder.'
   if (code === 'INVALID_PATH' || code === 'INVALID_NAME') return 'Invalid path.'
   if (code === 'ALREADY_EXISTS') return 'An item with this name already exists.'
+  if (code === 'NOT_EMPTY')
+    return 'Folder is not empty. Use rm -r to remove its contents.'
   if (code === 'NOT_FILE') return 'Existing item is not a file.'
   if (code === 'CYCLE') return 'A folder cannot be moved inside itself.'
   if (code === 'PROTECTED') return 'This location or item is protected.'
@@ -81,6 +84,7 @@ export async function executeCommand(
       'clear',
       'cp',
       'mv',
+      'rm',
     ].includes(command)
   )
     return fail(
@@ -95,6 +99,25 @@ export async function executeCommand(
       : { stdout: '', stderr: '', exitCode: 0, clearTranscript: true }
   if (command === 'cat' && args.length !== 1)
     return fail('cat: expected one path.', 2)
+  let removePath: string | undefined
+  let recursive = false
+  if (command === 'rm') {
+    let index = 0
+    if (args[index] === '-r') {
+      recursive = true
+      index++
+    }
+    const literal = args[index] === '--'
+    if (literal) index++
+    if (args.length !== index + 1)
+      return fail('rm: expected one path. Usage: rm [-r] [--] <path>.', 2)
+    removePath = args[index]
+    if (!literal && removePath.startsWith('-'))
+      return fail(
+        'rm: unsupported option. Use -- before a path beginning with a dash.',
+        2,
+      )
+  }
   const transfer = command === 'cp' || command === 'mv'
   if (transfer && args.length !== 2)
     return fail(`${command}: expected a source and destination path.`, 2)
@@ -102,23 +125,38 @@ export async function executeCommand(
   if (mutation && args.length !== 1)
     return fail(`${command}: expected one path.`, 2)
   if (
+    command !== 'rm' &&
     args.length >
-    (transfer
-      ? 2
-      : command === 'ls' || command === 'cd' || command === 'cat' || mutation
-        ? 1
-        : 0)
+      (transfer
+        ? 2
+        : command === 'ls' || command === 'cd' || command === 'cat' || mutation
+          ? 1
+          : 0)
   )
     return fail(`${command}: too many arguments.`, 2)
   if (command === 'help')
     return {
       stdout:
-        'pwd — show the current path\nls [path] — list files and folders\ncd [path] — change folder (home by default)\nmkdir <path> — create a folder\ntouch <path> — create or update a file\ncat <path> — read a text file\necho [args…] — print literal text\nclear — clear this window output\ncp <source> <destination> — copy a file (no overwrite)\nmv <source> <destination> — move or rename a file or folder (no overwrite)\nhelp — show commands\nQuote paths containing spaces. Shell operators and expansion are not supported.',
+        'pwd — show the current path\nls [path] — list files and folders\ncd [path] — change folder (home by default)\nmkdir <path> — create a folder\ntouch <path> — create or update a file\ncat <path> — read a text file\necho [args…] — print literal text\nclear — clear this window output\ncp <source> <destination> — copy a file (no overwrite)\nmv <source> <destination> — move or rename a file or folder (no overwrite)\nrm [-r] [--] <path> — delete an item; -r includes folder contents\nhelp — show commands\nQuote paths containing spaces. Shell operators and expansion are not supported.',
       stderr: '',
       exitCode: 0,
     }
   let mutationStarted = false
   try {
+    if (command === 'rm') {
+      const target = await vfs.resolve(removePath!, cwd)
+      if (signal.aborted) return fail('Command cancelled.', 130)
+      if (!target.ok) return fail(`rm: ${diagnostic(target.error.code)}`)
+      mutationStarted = true
+      onMutationStart?.()
+      const result = await vfs.remove(target.value, { recursive })
+      return result.ok
+        ? { stdout: '', stderr: '', exitCode: 0, mutationStarted: true }
+        : {
+            ...fail(`rm: ${diagnostic(result.error.code)}`),
+            mutationStarted: true,
+          }
+    }
     if (transfer) {
       const source = await vfs.resolve(args[0], cwd)
       if (signal.aborted) return fail('Command cancelled.', 130)
