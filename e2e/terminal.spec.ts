@@ -267,3 +267,54 @@ test('cat reads persisted text after reload and echo remains literal; clear pres
     'Hello from persistent VFS',
   )
 })
+
+test('cp and mv update Files, reject overwrite and retain moved folders after reload', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open Files', exact: true }).click()
+  const files = page.getByRole('region', { name: 'Files window' })
+  await files.getByRole('button', { name: 'Open folder Documents' }).click()
+  await page.getByRole('button', { name: 'Open Terminal', exact: true }).click()
+  const terminal = page.getByRole('region', { name: 'Terminal window' })
+  await command(terminal, 'touch "Documents/source file.txt"')
+  await command(
+    terminal,
+    'cp "Documents/source file.txt" "Documents/copy file.txt"',
+  )
+  await expect(
+    files.getByRole('button', { name: 'Select file copy file.txt' }),
+  ).toBeVisible()
+  await command(
+    terminal,
+    'mv "Documents/copy file.txt" "Documents/source file.txt"',
+  )
+  await expect(terminal.getByRole('log')).toContainText(
+    'overwrite is not supported',
+  )
+  await command(terminal, 'mkdir Documents/work')
+  await command(terminal, 'mv "Documents/copy file.txt" Documents/work/')
+  await expect(
+    files.getByRole('button', { name: 'Select file copy file.txt' }),
+  ).toHaveCount(0)
+  await command(terminal, 'mv Documents/work Desktop/renamed')
+  await expect(
+    files.getByRole('button', { name: 'Open folder work' }),
+  ).toHaveCount(0)
+  await page.reload()
+  await page.getByRole('button', { name: 'Open Files', exact: true }).click()
+  await files.getByRole('button', { name: 'Open folder Desktop' }).click()
+  await files.getByRole('button', { name: 'Open folder renamed' }).click()
+  await expect(
+    files.getByRole('button', { name: 'Select file copy file.txt' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Open Terminal', exact: true }).click()
+  await command(terminal, 'ls Documents')
+  await expect(terminal.getByRole('log').locator('pre').last()).toContainText(
+    'source file.txt',
+  )
+  await command(terminal, 'ls Desktop/renamed')
+  await expect(terminal.getByRole('log').locator('pre').last()).toContainText(
+    'copy file.txt',
+  )
+})
