@@ -257,18 +257,33 @@ test('incompatible schema retries preserve data and release their connections', 
       page.getByRole('heading', { name: 'Workspace format is incompatible' }),
     ).toBeVisible()
     await expect(page.getByRole('alert')).toContainText('preserved')
-    if (attempt < 2)
-      await page.getByRole('button', { name: 'Retry', exact: true }).click()
+    if (attempt < 2) {
+      const retry = page.getByRole('button', { name: 'Retry', exact: true })
+      const previousButton = await retry.elementHandle()
+      await retry.click()
+      // The old error can remain visible until React renders the loading state.
+      // Wait for that attempt's button to disappear before accepting the next error.
+      await previousButton?.waitForElementState('hidden')
+    }
   }
   await page.evaluate(async () => {
     const request = indexedDB.open('browser-os')
     const database = await new Promise<BrowserDatabase>((resolve) => {
       request.onsuccess = () => resolve(request.result)
     })
-    const query = database.transaction('legacy').objectStore('legacy').getAll()
-    const records = await new Promise<unknown[]>((resolve) => {
-      query.onsuccess = () => resolve(query.result)
+    const transaction = database.transaction('legacy')
+    const finished = new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve()
+      transaction.onabort = () => reject(transaction.error)
     })
+    const query = transaction.objectStore('legacy').getAll()
+    const records = await new Promise<unknown[]>((resolve, reject) => {
+      query.onsuccess = () => resolve(query.result)
+      query.onerror = () => reject(query.error)
+    })
+    // Request success precedes transaction completion. Release the inspection read
+    // before testing whether boot left any connections open.
+    await finished
     database.close()
     if (
       JSON.stringify(records) !==

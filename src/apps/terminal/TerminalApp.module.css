@@ -1,0 +1,71 @@
+.app {
+  color: var(--text);
+  font:
+    13px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+.path {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.help,
+.exit {
+  color: var(--muted);
+  font-size: 12px;
+}
+.output {
+  max-height: 230px;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--window-titlebar);
+}
+.entry + .entry {
+  margin-top: 16px;
+}
+.command {
+  margin: 4px 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.output pre {
+  margin: 4px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+.error {
+  color: var(--text);
+}
+.form {
+  margin-top: 12px;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.controls input {
+  flex: 1 1 140px;
+  min-width: 0;
+  padding: 8px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  font: inherit;
+}
+.controls button,
+.app > button {
+  min-height: 40px;
+  padding: 8px 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  font: inherit;
+}

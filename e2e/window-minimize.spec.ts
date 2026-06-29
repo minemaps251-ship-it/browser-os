@@ -18,6 +18,10 @@ test('minimizes by keyboard, excludes hidden chrome from Tab, restores the same 
     page.getByRole('button', { name: 'Open Files', exact: true }),
   ).toBeFocused()
   await page.keyboard.press('Tab')
+  await expect(
+    page.getByRole('button', { name: 'Open Terminal', exact: true }),
+  ).toBeFocused()
+  await page.keyboard.press('Tab')
   const task = page.getByRole('button', { name: 'About BrowserOS (minimized)' })
   await expect(task).toBeFocused()
   await page.keyboard.press('Enter')
