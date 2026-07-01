@@ -545,7 +545,7 @@ test('destination dialog supports collision recovery, cycle rejection and mobile
   ).toBeVisible()
 })
 
-test('Open uses the runtime and shows unsupported text files honestly after reload', async ({
+test('Open launches Notes for text files through the runtime after reload', async ({
   page,
 }) => {
   await page.goto('/')
@@ -563,7 +563,9 @@ test('Open uses the runtime and shows unsupported text files honestly after relo
   const file = frame.getByRole('button', { name: 'Select file open.txt' })
   await file.focus()
   await page.keyboard.press('Enter')
-  await expect(frame.getByRole('alert')).toContainText('No default application')
+  const notes = page.getByRole('region', { name: 'Notes window' })
+  await expect(notes.getByRole('heading', { name: 'open.txt' })).toBeVisible()
+  await expect(notes.getByText('This file is empty.')).toBeVisible()
   await expect(page.getByRole('region', { name: 'Files window' })).toHaveCount(
     1,
   )
@@ -571,6 +573,7 @@ test('Open uses the runtime and shows unsupported text files honestly after relo
   await page.getByRole('button', { name: 'Open Files', exact: true }).click()
   await file.click()
   await frame.getByRole('button', { name: 'Open', exact: true }).click()
-  await expect(frame.getByRole('alert')).toContainText('No default application')
+  await expect(notes.getByRole('heading', { name: 'open.txt' })).toBeVisible()
+  await expect(notes).toHaveCount(1)
   await expect(file).toHaveAttribute('aria-pressed', 'true')
 })

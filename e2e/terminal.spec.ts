@@ -266,6 +266,40 @@ test('cat reads persisted text after reload and echo remains literal; clear pres
   await expect(terminal.getByRole('log')).toContainText(
     'Hello from persistent VFS',
   )
+  await page.getByRole('button', { name: 'Open Files', exact: true }).click()
+  const files = page.getByRole('region', { name: 'Files window' })
+  await files.getByRole('button', { name: 'Open folder Documents' }).click()
+  const file = files.getByRole('button', { name: 'Select file read me.txt' })
+  await file.focus()
+  await file.press('Enter')
+  const notes = page.getByRole('region', { name: 'Notes window' })
+  await expect(
+    notes.getByRole('region', { name: 'File contents' }),
+  ).toContainText('Hello from persistent VFS')
+  await expect(
+    notes.getByRole('region', { name: 'File contents' }),
+  ).toContainText('<script>unsafe()</script>')
+  await expect(notes.locator('script')).toHaveCount(0)
+  await notes
+    .getByRole('button', { name: 'Minimize Notes', exact: true })
+    .click()
+  await page
+    .getByRole('navigation', { name: 'Running applications' })
+    .getByRole('button', { name: 'Files', exact: true })
+    .click()
+  await file.click()
+  await files.getByRole('button', { name: 'Open', exact: true }).click()
+  await expect(notes).toHaveCount(1)
+  await expect(notes).toBeVisible()
+  await notes.getByRole('button', { name: 'Close Notes', exact: true }).click()
+  await page
+    .getByRole('navigation', { name: 'Running applications' })
+    .getByRole('button', { name: 'Files', exact: true })
+    .click()
+  await files.getByRole('button', { name: 'Open', exact: true }).click()
+  await expect(
+    notes.getByRole('region', { name: 'File contents' }),
+  ).toContainText('Hello from persistent VFS')
 })
 
 test('cp and mv update Files, reject overwrite and retain moved folders after reload', async ({

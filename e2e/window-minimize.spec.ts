@@ -22,6 +22,10 @@ test('minimizes by keyboard, excludes hidden chrome from Tab, restores the same 
     page.getByRole('button', { name: 'Open Terminal', exact: true }),
   ).toBeFocused()
   await page.keyboard.press('Tab')
+  await expect(
+    page.getByRole('button', { name: 'Open Notes', exact: true }),
+  ).toBeFocused()
+  await page.keyboard.press('Tab')
   const task = page.getByRole('button', { name: 'About BrowserOS (minimized)' })
   await expect(task).toBeFocused()
   await page.keyboard.press('Enter')
@@ -62,7 +66,7 @@ test('cancels move/resize previews on minimize and survives repeated restore', a
       await page.mouse.move(x + 40, y + 30)
       await page
         .getByRole('button', { name: 'Minimize About BrowserOS' })
-        .evaluate((button) => button.click())
+        .evaluate((button) => (button as { click(): void }).click())
       await page.mouse.up()
       await expect(frame).toBeHidden()
       await page
@@ -81,7 +85,7 @@ test('cancels move/resize previews on minimize and survives repeated restore', a
   await page.keyboard.press('ArrowRight')
   await frame
     .locator('button[aria-label="Minimize About BrowserOS"]')
-    .evaluate((button) => button.click())
+    .evaluate((button) => (button as { click(): void }).click())
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await page
     .getByRole('button', { name: 'About BrowserOS (minimized)' })

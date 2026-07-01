@@ -1,6 +1,7 @@
 import type { ApplicationLaunchInput } from '../core/applications/launchInput'
 import type { ComponentType } from 'react'
 import type { ApplicationManifest } from '../core/applications/registry'
+import { notesManifest } from '../apps/notes/manifest'
 import { terminalManifest } from '../apps/terminal/manifest'
 import { filesManifest } from '../apps/files/manifest'
 import { aboutManifest } from '../apps/about/manifest'
@@ -19,4 +20,5 @@ export const builtInApps: readonly AppRegistration[] = [
     manifest: terminalManifest,
     load: () => import('../apps/terminal/TerminalApp'),
   },
+  { manifest: notesManifest, load: () => import('../apps/notes/NotesApp') },
 ]

@@ -55,7 +55,9 @@ it('delivers independent file inputs to renderer instances and releases process 
   }
 })
 it('opens from Files with keyboard and reports unsupported/deleted files without starting a fake app', async () => {
-  const runtime = createBrowserRuntime()
+  const runtime = createBrowserRuntime(
+    builtInApps.filter((entry) => !entry.manifest.fileAssociations?.length),
+  )
   const home = await runtime.vfs.resolve('/home/user', ROOT_NODE_ID)
   if (!home.ok) throw new Error('Missing home')
   const file = await runtime.vfs.createFile(home.value, 'note.txt', {
@@ -94,7 +96,7 @@ it('opens from Files with keyboard and reports unsupported/deleted files without
 })
 it('opens the selected file through a declared handler and restores the same window on repetition', async () => {
   const runtime = createBrowserRuntime([
-    ...builtInApps,
+    ...builtInApps.filter((entry) => !entry.manifest.fileAssociations?.length),
     {
       manifest: {
         ...firstApp,
