@@ -41,6 +41,8 @@ export function createRuntime(deps: Dependencies) {
   const processes = new Map<ProcessId, Process>()
   const scopes = new Map<ProcessId, ProcessScope>()
   const pending = new Map<AppId, Promise<LaunchResult>>()
+  const closeGuards = new Map<ProcessId, () => Promise<boolean>>()
+  const closing = new Map<WindowId, Promise<boolean>>()
   let disposed = false
 
   async function start(
@@ -140,13 +142,50 @@ export function createRuntime(deps: Dependencies) {
     }
     return promise
   }
-  function requestCloseWindow(id: WindowId) {
+  function closeWindow(id: WindowId) {
     const window = windows.read.getState().byId[id]
     if (!window) return
+    closeGuards.delete(window.processId)
+    closing.delete(id)
     windows.remove(id)
     scopes.get(window.processId)?.dispose()
     scopes.delete(window.processId)
     processes.delete(window.processId)
+  }
+  function requestCloseWindow(id: WindowId): Promise<boolean> | undefined {
+    const window = windows.read.getState().byId[id]
+    if (!window || disposed) return
+    const guard = closeGuards.get(window.processId)
+    if (!guard) {
+      closeWindow(id)
+      return
+    }
+    const pendingClose = closing.get(id)
+    if (pendingClose) return pendingClose
+    windows.restore(id)
+    // Defer invocation so reentrant close requests share the same promise.
+    const pendingCloseResult = Promise.resolve()
+      .then(guard)
+      .then(
+        (allow) => {
+          if (
+            allow &&
+            !disposed &&
+            closeGuards.get(window.processId) === guard &&
+            windows.read.getState().byId[id]?.processId === window.processId
+          ) {
+            closeWindow(id)
+            return true
+          }
+          return false
+        },
+        () => false,
+      )
+      .finally(() => {
+        if (closing.get(id) === pendingCloseResult) closing.delete(id)
+      })
+    closing.set(id, pendingCloseResult)
+    return pendingCloseResult
   }
   return {
     registry: deps.registry,
@@ -187,12 +226,26 @@ export function createRuntime(deps: Dependencies) {
       if (manifest) windows.fitToArea(id, manifest.window.minSize, area)
     },
     requestCloseWindow,
+    registerCloseGuard: (
+      processId: ProcessId,
+      guard: () => Promise<boolean>,
+    ) => {
+      if (disposed || !processes.has(processId)) return () => {}
+      if (closeGuards.has(processId))
+        throw new Error('A close guard is already registered.')
+      closeGuards.set(processId, guard)
+      return () => {
+        if (closeGuards.get(processId) === guard) closeGuards.delete(processId)
+      }
+    },
     listProcesses: () => [...processes.values()],
     reportCrash(id: WindowId) {
       const window = windows.read.getState().byId[id]
       if (!window) return
       const process = processes.get(window.processId)
       if (process) processes.set(process.id, { ...process, status: 'crashed' })
+      closeGuards.delete(window.processId)
+      closing.delete(id)
       scopes.get(window.processId)?.dispose()
     },
     dispose() {
@@ -200,6 +253,8 @@ export function createRuntime(deps: Dependencies) {
       disposed = true
       scopes.forEach((scope) => scope.dispose())
       scopes.clear()
+      closeGuards.clear()
+      closing.clear()
       for (const id of windows.read.getState().order) windows.remove(id)
       processes.clear()
       pending.clear()

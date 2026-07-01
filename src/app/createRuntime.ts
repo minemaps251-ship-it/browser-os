@@ -44,7 +44,10 @@ export function createBrowserRuntime(
         if (scope.signal.aborted) return
         contents.set(
           context.processId,
-          createElement(module.default, { launchInput: context.input }),
+          createElement(module.default, {
+            launchInput: context.input,
+            processId: context.processId,
+          }),
         )
         scope.registerCleanup(() => {
           contents.delete(context.processId)

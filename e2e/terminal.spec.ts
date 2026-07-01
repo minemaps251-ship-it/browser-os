@@ -273,12 +273,9 @@ test('cat reads persisted text after reload and echo remains literal; clear pres
   await file.focus()
   await file.press('Enter')
   const notes = page.getByRole('region', { name: 'Notes window' })
-  await expect(
-    notes.getByRole('region', { name: 'File contents' }),
-  ).toContainText('Hello from persistent VFS')
-  await expect(
-    notes.getByRole('region', { name: 'File contents' }),
-  ).toContainText('<script>unsafe()</script>')
+  await expect(notes.getByRole('textbox', { name: 'Text' })).toHaveValue(
+    'Hello from persistent VFS\n<script>unsafe()</script>',
+  )
   await expect(notes.locator('script')).toHaveCount(0)
   await notes
     .getByRole('button', { name: 'Minimize Notes', exact: true })
@@ -297,9 +294,9 @@ test('cat reads persisted text after reload and echo remains literal; clear pres
     .getByRole('button', { name: 'Files', exact: true })
     .click()
   await files.getByRole('button', { name: 'Open', exact: true }).click()
-  await expect(
-    notes.getByRole('region', { name: 'File contents' }),
-  ).toContainText('Hello from persistent VFS')
+  await expect(notes.getByRole('textbox', { name: 'Text' })).toHaveValue(
+    'Hello from persistent VFS\n<script>unsafe()</script>',
+  )
 })
 
 test('cp and mv update Files, reject overwrite and retain moved folders after reload', async ({

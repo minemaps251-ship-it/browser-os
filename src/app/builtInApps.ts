@@ -1,3 +1,4 @@
+import type { ProcessId } from '../core/shared/ids'
 import type { ApplicationLaunchInput } from '../core/applications/launchInput'
 import type { ComponentType } from 'react'
 import type { ApplicationManifest } from '../core/applications/registry'
@@ -7,6 +8,7 @@ import { filesManifest } from '../apps/files/manifest'
 import { aboutManifest } from '../apps/about/manifest'
 
 export interface ApplicationProps {
+  readonly processId: ProcessId
   readonly launchInput: ApplicationLaunchInput
 }
 export interface AppRegistration {

@@ -67,11 +67,12 @@ it('reads coherent text, follows rename/move/content changes and reports deletio
     await workspace.vfs.remove(directory.value, { recursive: true })
     await vi.waitFor(() =>
       expect(session.getSnapshot()).toMatchObject({
-        status: 'error',
-        message: expect.stringContaining('removed'),
+        status: 'ready',
+        availability: 'deleted',
+        notice: expect.stringContaining('removed'),
       }),
     )
-    expect(session.getSnapshot()).not.toHaveProperty('document')
+    expect(session.getSnapshot()).toHaveProperty('buffer', 'New text')
   } finally {
     session.stop()
     workspace.dispose()
@@ -150,13 +151,23 @@ it('ignores stale and stopped reads including restart, and catches unexpected st
     expect(session.getSnapshot()).toBe(current)
     read.mockRejectedValueOnce(new Error('unexpected'))
     await session.retry()
-    expect(session.getSnapshot().status).toBe('error')
+    expect(session.getSnapshot()).toMatchObject({
+      status: 'ready',
+      availability: 'unavailable',
+      buffer: 'Latest',
+    })
     const late = deferred<VfsResult<DocumentRead>>()
     read.mockImplementationOnce(() => late.promise)
     const pending = session.retry()
     session.stop()
     session.start()
     await vi.waitFor(() => expect(session.getSnapshot().status).toBe('ready'))
+    await vi.waitFor(() =>
+      expect(session.getSnapshot()).toMatchObject({
+        status: 'ready',
+        availability: 'available',
+      }),
+    )
     const restarted = session.getSnapshot()
     late.resolve(old)
     await pending
