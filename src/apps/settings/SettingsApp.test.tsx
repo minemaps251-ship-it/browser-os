@@ -71,7 +71,14 @@ it('keeps committed radio while pending and retries the actual failed target aft
     let frame = await screen.findByRole('region', { name: 'Settings window' })
     await user.click(within(frame).getByRole('radio', { name: 'Dark' }))
     expect(within(frame).getByRole('radio', { name: 'System' })).toBeChecked()
-    expect(within(frame).getByRole('radio', { name: 'Dark' })).toBeDisabled()
+    expect(within(frame).getByRole('radio', { name: 'Dark' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    expect(within(frame).getByRole('radio', { name: 'Dark' })).toHaveFocus()
+    await user.click(within(frame).getByRole('radio', { name: 'Light' }))
+    expect(write).toHaveBeenCalledOnce()
+    expect(within(frame).getByRole('radio', { name: 'System' })).toBeChecked()
     expect(screen.getByRole('combobox', { name: 'Appearance' })).toBeDisabled()
     await act(async () => {
       gate.resolve(settingsFailure('QUOTA', 'Storage is full. Please retry.'))

@@ -19,7 +19,20 @@ export default function SettingsApp() {
   return (
     <div className={styles.app}>
       <fieldset
-        disabled={busy}
+        aria-disabled={busy}
+        aria-busy={busy}
+        onClickCapture={(event) => {
+          if (busy) event.preventDefault()
+        }}
+        onKeyDown={(event) => {
+          if (
+            busy &&
+            ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(
+              event.key,
+            )
+          )
+            event.preventDefault()
+        }}
         aria-describedby={`${description}${snapshot.error || snapshot.warning ? ` ${error}` : ''}`}
         className={styles.appearance}
       >
@@ -36,7 +49,10 @@ export default function SettingsApp() {
                 name={name}
                 value={theme.value}
                 checked={snapshot.theme === theme.value}
-                onChange={() => selectTheme(theme.value)}
+                aria-disabled={busy}
+                onChange={() => {
+                  if (!busy) selectTheme(theme.value)
+                }}
               />
               {theme.label}
             </label>

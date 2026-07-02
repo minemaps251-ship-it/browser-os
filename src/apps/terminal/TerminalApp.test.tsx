@@ -111,3 +111,36 @@ it('recalls submitted errors and clear, preserves draft edits, and keeps windows
     act(() => runtime.dispose())
   }
 })
+
+it('clears output with Ctrl+L without clearing draft/history or interrupting IME', async () => {
+  const runtime = createBrowserRuntime()
+  const user = userEvent.setup()
+  const view = render(<BrowserOS runtime={runtime} />)
+  try {
+    await user.click(screen.getByRole('button', { name: 'Open Terminal' }))
+    const frame = await screen.findByRole('region', { name: 'Terminal window' })
+    const input = within(frame).getByRole('textbox', { name: 'Command' })
+    await waitFor(() => expect(input).not.toHaveAttribute('readonly'))
+    await user.type(input, 'echo first{Enter}')
+    await waitFor(() => expect(input).not.toHaveAttribute('readonly'))
+    await user.type(input, 'echo draft')
+    await user.keyboard('{Control>}l{/Control}')
+    await waitFor(() =>
+      expect(within(frame).getByRole('log')).toBeEmptyDOMElement(),
+    )
+    expect(input).toHaveValue('echo draft')
+    await user.keyboard('{ArrowUp}')
+    expect(input).toHaveValue('echo first')
+    await user.keyboard('{ArrowDown}')
+    expect(input).toHaveValue('echo draft')
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(input).not.toHaveAttribute('readonly'))
+    fireEvent.compositionStart(input)
+    await user.keyboard('{Control>}l{/Control}')
+    expect(within(frame).getByRole('log')).toHaveTextContent('$ echo draft')
+    fireEvent.compositionEnd(input)
+  } finally {
+    view.unmount()
+    act(() => runtime.dispose())
+  }
+})

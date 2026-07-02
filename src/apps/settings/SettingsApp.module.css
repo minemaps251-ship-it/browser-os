@@ -50,3 +50,7 @@
   border-radius: var(--radius-small);
   font: inherit;
 }
+.appearance[aria-disabled='true'] .option {
+  opacity: 0.65;
+  cursor: wait;
+}

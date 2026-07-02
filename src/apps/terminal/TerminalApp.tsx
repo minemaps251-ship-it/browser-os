@@ -100,6 +100,20 @@ export default function TerminalApp() {
               history.onKeyDown(event, snapshot.status === 'ready')
               if (
                 event.ctrlKey &&
+                !event.metaKey &&
+                !event.altKey &&
+                !event.shiftKey &&
+                event.key.toLowerCase() === 'l' &&
+                !history.isComposing() &&
+                !event.nativeEvent.isComposing &&
+                event.nativeEvent.keyCode !== 229
+              ) {
+                event.preventDefault()
+                if (snapshot.status === 'ready') void session.run('clear')
+              }
+
+              if (
+                event.ctrlKey &&
                 event.key.toLowerCase() === 'c' &&
                 snapshot.status === 'busy' &&
                 snapshot.cancellable &&

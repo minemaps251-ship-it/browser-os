@@ -7,6 +7,7 @@ import {
   createBrowserRuntime,
   type BrowserRuntime,
 } from '../../app/createRuntime'
+import { ROOT_NODE_ID } from '../../core/filesystem/policy'
 import { firstApp, secondApp } from '../../test/fixtures'
 import type { AppRegistration } from '../../app/builtInApps'
 
@@ -131,4 +132,69 @@ describe('Desktop Shell', () => {
       consoleError.mockRestore()
     }
   })
+})
+
+it('keeps another app and committed files usable after a renderer crash and relaunches cleanly', async () => {
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const healthyAction = vi.fn()
+  let shouldCrash = true
+  try {
+    const runtime = mount([
+      {
+        manifest: firstApp,
+        load: async () => ({
+          default: () => {
+            if (shouldCrash) throw new Error('Render failure')
+            return <p>Recovered application</p>
+          },
+        }),
+      },
+      {
+        manifest: secondApp,
+        load: async () => ({
+          default: () => (
+            <button onClick={healthyAction}>Healthy action</button>
+          ),
+        }),
+      },
+    ])
+    const file = await runtime.vfs.createFile(ROOT_NODE_ID, 'retained.txt', {
+      kind: 'text',
+      encoding: 'utf-8',
+      text: 'Committed text',
+    })
+    if (!file.ok) throw new Error('Create failed')
+    let crashed!: Awaited<ReturnType<typeof runtime.launch>>
+    await act(async () => {
+      crashed = await runtime.launch(firstApp.id)
+    })
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'application stopped',
+    )
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Open Second app' }))
+    await userEvent
+      .setup()
+      .click(await screen.findByRole('button', { name: 'Healthy action' }))
+    expect(healthyAction).toHaveBeenCalledOnce()
+    expect(await runtime.vfs.readFile(file.value)).toMatchObject({
+      ok: true,
+      value: { content: { text: 'Committed text' } },
+    })
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Close First app' }))
+    shouldCrash = false
+    let reopened!: Awaited<ReturnType<typeof runtime.launch>>
+    await act(async () => {
+      reopened = await runtime.launch(firstApp.id)
+    })
+    expect(await screen.findByText('Recovered application')).toBeInTheDocument()
+    expect(
+      crashed.ok && reopened.ok && crashed.processId !== reopened.processId,
+    ).toBe(true)
+  } finally {
+    consoleError.mockRestore()
+  }
 })
