@@ -135,3 +135,27 @@ it('denies throwing guards and ignores stale approvals after unregister or dispo
     runtime.dispose()
   }
 })
+
+it('tracks the current document independently from immutable launch input and rejects inactive bindings', async () => {
+  const runtime = createTestRuntime(async () => {}, [
+    { ...firstApp, fileAssociations: [{ mime: 'text/plain' }] },
+  ])
+  const launched = await runtime.launch(firstApp.id)
+  if (!launched.ok) throw new Error('Missing process')
+  const node = 'saved-file' as import('../filesystem/types').NodeId
+  expect(runtime.listProcesses()[0].documentFileId).toBeNull()
+  expect(runtime.bindProcessDocument(launched.processId, node)).toBe(true)
+  expect(runtime.listProcesses()[0]).toMatchObject({
+    documentFileId: node,
+    launchInput: { kind: 'default' },
+  })
+  runtime.reportCrash(launched.windowId)
+  expect(runtime.bindProcessDocument(launched.processId, node)).toBe(false)
+  runtime.dispose()
+  expect(runtime.bindProcessDocument(launched.processId, node)).toBe(false)
+  const noHandler = createTestRuntime()
+  const other = await noHandler.launch(firstApp.id)
+  if (!other.ok) throw new Error('Missing process')
+  expect(noHandler.bindProcessDocument(other.processId, node)).toBe(false)
+  noHandler.dispose()
+})

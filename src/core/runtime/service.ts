@@ -1,3 +1,4 @@
+import type { NodeId } from '../filesystem/types'
 import type { ApplicationLaunchInput } from '../applications/launchInput'
 import type { Position } from '../windows/geometry'
 import type { ApplicationRegistry } from '../applications/registry'
@@ -15,6 +16,7 @@ export interface Process {
   readonly appId: AppId
   readonly status: 'starting' | 'running' | 'crashed'
   readonly startedAt: number
+  readonly documentFileId: NodeId | null
   readonly launchInput: ApplicationLaunchInput
 }
 export type LaunchResult =
@@ -61,6 +63,7 @@ export function createRuntime(deps: Dependencies) {
       status: 'starting',
       startedAt,
       launchInput,
+      documentFileId: launchInput.kind === 'file' ? launchInput.fileId : null,
     })
     scopes.set(processId, scope)
     try {
@@ -87,6 +90,7 @@ export function createRuntime(deps: Dependencies) {
         status: 'running',
         startedAt,
         launchInput,
+        documentFileId: launchInput.kind === 'file' ? launchInput.fileId : null,
       })
       return { ok: true, windowId, processId }
     } catch {
@@ -237,6 +241,19 @@ export function createRuntime(deps: Dependencies) {
       return () => {
         if (closeGuards.get(processId) === guard) closeGuards.delete(processId)
       }
+    },
+    bindProcessDocument: (processId: ProcessId, fileId: NodeId) => {
+      const process = processes.get(processId)
+      const manifest = process && deps.registry.get(process.appId)
+      if (
+        disposed ||
+        !process ||
+        process.status !== 'running' ||
+        !manifest?.fileAssociations?.length
+      )
+        return false
+      processes.set(processId, { ...process, documentFileId: fileId })
+      return true
     },
     listProcesses: () => [...processes.values()],
     reportCrash(id: WindowId) {

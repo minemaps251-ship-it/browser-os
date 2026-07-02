@@ -7,6 +7,7 @@ import {
 } from 'react'
 import type { ApplicationProps } from '../../app/builtInApps'
 import { useRuntime } from '../../app/runtimeContext'
+import { notesManifest } from './manifest'
 import { createNotesSession } from './session'
 export function useNotesDocument({
   launchInput: input,
@@ -14,12 +15,16 @@ export function useNotesDocument({
 }: ApplicationProps) {
   const runtime = useRuntime()
   const composing = useRef(false)
+  const [saveAsOpen, setSaveAsOpen] = useState(false)
   // Launch input is immutable for the lifetime of this process.
   const [session] = useState(() =>
     createNotesSession(
       runtime.vfs,
       runtime.refresh,
       input.kind === 'file' ? input.fileId : null,
+      (id) => {
+        runtime.bindProcessDocument(processId, id)
+      },
     ),
   )
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot)
@@ -42,6 +47,10 @@ export function useNotesDocument({
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [needsWarning])
+  function save() {
+    if (snapshot.status === 'ready' && !snapshot.fileId) setSaveAsOpen(true)
+    else void session.save()
+  }
   return {
     snapshot,
     onCompositionStart: () => {
@@ -62,15 +71,27 @@ export function useNotesDocument({
           !event.nativeEvent.isComposing &&
           event.nativeEvent.keyCode !== 229
         )
-          void session.save()
+          save()
       }
     },
     retry: session.retry,
     edit: session.edit,
-    save: session.save,
+    save,
+    newDocument: () => void runtime.launch(notesManifest.id),
+    saveAsOpen,
+    openSaveAs: () => setSaveAsOpen(true),
+    cancelSaveAs: () => setSaveAsOpen(false),
+    saveAs: session.saveAs,
+    savedAs: () => {
+      setSaveAsOpen(false)
+      if (session.getSnapshot().status === 'ready') void session.saveAndClose()
+    },
     discardAndReload: session.discardAndReload,
     cancelClose: session.cancelClose,
     discardClose: session.discardClose,
-    saveAndClose: session.saveAndClose,
+    saveAndClose: () => {
+      if (snapshot.status === 'ready' && !snapshot.fileId) setSaveAsOpen(true)
+      else void session.saveAndClose()
+    },
   }
 }

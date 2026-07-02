@@ -104,7 +104,7 @@ it('opens two real text files, deduplicates windows, renders HTML literally and 
     act(() => runtime.dispose())
   }
 })
-it('shows launcher guidance and retries a failed document read through the hook', async () => {
+it('opens an untitled document and retries a failed document read through the hook', async () => {
   const runtime = createBrowserRuntime()
   const home = await runtime.vfs.resolve('/home/user', ROOT_NODE_ID)
   if (!home.ok) throw new Error('Missing home')
@@ -119,9 +119,7 @@ it('shows launcher guidance and retries a failed document read through the hook'
   try {
     await user.click(screen.getByRole('button', { name: 'Open Notes' }))
     expect(
-      await screen.findByText(
-        'Open a text file from Files to read it in Notes.',
-      ),
+      await screen.findByRole('heading', { name: 'Untitled' }),
     ).toBeInTheDocument()
     vi.spyOn(runtime.vfs, 'readFile').mockResolvedValueOnce({
       ok: false,
@@ -229,6 +227,64 @@ it('saves with keyboard outside IME, warns on unload, and supports Cancel, Save 
     const cleanWarning = new Event('beforeunload', { cancelable: true })
     fireEvent(window, cleanWarning)
     expect(cleanWarning.defaultPrevented).toBe(false)
+  } finally {
+    view.unmount()
+    act(() => runtime.dispose())
+  }
+})
+
+it('saves an untitled document through the destination hook and reuses its window from Files', async () => {
+  const runtime = createBrowserRuntime()
+  const user = userEvent.setup()
+  const view = render(
+    <StrictMode>
+      <BrowserOS runtime={runtime} />
+    </StrictMode>,
+  )
+  try {
+    await user.click(screen.getByRole('button', { name: 'Open Notes' }))
+    const notes = await screen.findByRole('region', { name: 'Notes window' })
+    const text = within(notes).getByRole('textbox', { name: 'Text' })
+    await user.type(text, 'New document text')
+    await user.click(within(notes).getByRole('button', { name: /^Save$/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Save as' })
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('button', { name: 'Save file' }),
+      ).toBeEnabled(),
+    )
+    const name = within(dialog).getByRole('textbox', { name: 'File name' })
+    await user.clear(name)
+    await user.type(name, 'new.txt')
+    await user.click(within(dialog).getByRole('button', { name: 'Save file' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    const file = await runtime.vfs.resolve('/home/user/new.txt', ROOT_NODE_ID)
+    if (!file.ok) throw new Error('Missing saved file')
+    expect(await runtime.vfs.readFile(file.value)).toMatchObject({
+      ok: true,
+      value: { content: { text: 'New document text' } },
+    })
+    await act(async () => {
+      await runtime.openFile(file.value)
+    })
+    expect(
+      screen.getAllByRole('region', { name: 'Notes window' }),
+    ).toHaveLength(1)
+    expect(
+      runtime.listProcesses().find((process) => process.appId === 'notes')
+        ?.documentFileId,
+    ).toBe(file.value)
+    await user.click(
+      within(notes).getByRole('button', { name: 'New document' }),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('region', { name: 'Notes window' }),
+      ).toHaveLength(2),
+    )
+    expect(text).toHaveValue('New document text')
   } finally {
     view.unmount()
     act(() => runtime.dispose())

@@ -57,3 +57,22 @@
   font: inherit;
   line-height: 1.6;
 }
+.folders {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 140px;
+  overflow: auto;
+  margin-bottom: 12px;
+}
+.app input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  font: inherit;
+}

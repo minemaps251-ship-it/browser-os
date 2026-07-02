@@ -3,13 +3,16 @@ import type {
   DocumentRead,
   NodeId,
   VfsErrorCode,
+  VfsResult,
 } from '../../core/filesystem/types'
 import type { RefreshService } from '../../core/refresh/service'
 export type NotesVfs = Pick<
   VirtualFileSystem,
-  'readFile' | 'pathOf' | 'subscribe' | 'writeFile'
+  'readFile' | 'pathOf' | 'subscribe' | 'writeFile' | 'createFile'
 >
 interface EditorState {
+  readonly fileId: NodeId | null
+  readonly name: string
   readonly buffer: string
   readonly baseline: string
   readonly baselineRevision: number
@@ -21,16 +24,19 @@ interface EditorState {
   readonly notice: string | null
 }
 export type NotesSnapshot =
-  | { readonly status: 'idle' | 'loading' }
+  | { readonly status: 'loading' }
   | ({
       readonly status: 'ready'
-      readonly document: DocumentRead
+      readonly document: DocumentRead | null
       readonly path: string
     } & EditorState)
   | { readonly status: 'error'; readonly message: string }
 function message(code: VfsErrorCode): string {
   if (code === 'NOT_FOUND')
     return 'This file was removed or is no longer available. Your edits have been kept.'
+  if (code === 'ALREADY_EXISTS')
+    return 'An item with this name already exists. Choose another name.'
+  if (code === 'INVALID_NAME') return 'Enter a valid file name.'
   if (code === 'NOT_FILE') return 'This item is not a text file.'
   if (code === 'CONFLICT')
     return 'The file changed elsewhere. Your edits have been kept. Discard edits and reload to use the saved version.'
@@ -48,15 +54,34 @@ export function createNotesSession(
   vfs: NotesVfs,
   refresh: Pick<RefreshService, 'subscribe' | 'getSnapshot'>,
   fileId: NodeId | null,
+  onFileBound: (id: NodeId) => void = () => {},
 ) {
   let snapshot: NotesSnapshot = Object.freeze({
-    status: fileId ? 'loading' : 'idle',
+    ...(fileId
+      ? { status: 'loading' as const }
+      : {
+          status: 'ready' as const,
+          document: null,
+          fileId: null,
+          name: 'Untitled',
+          path: '',
+          buffer: '',
+          baseline: '',
+          baselineRevision: 0,
+          dirty: false,
+          saving: false,
+          closing: false,
+          conflict: false,
+          availability: 'available' as const,
+          notice: null,
+        }),
   })
   let running = false
   let generation = 0
   let editVersion = 0
   let lifetime = 0
   let pendingSave: Promise<boolean> | null = null
+  let pendingCreate: Promise<VfsResult<NodeId>> | null = null
   let requestId: string | null = null
   let closeRequest: Promise<boolean> | null = null
   let finishClose: ((allow: boolean) => void) | null = null
@@ -84,7 +109,7 @@ export function createNotesSession(
   }
   async function reload(discard = false) {
     if (!running || !fileId) return
-    if (pendingSave) return
+    if (pendingSave || pendingCreate) return
     const token = ++generation
     const editsAtStart = editVersion
     const valid = () => running && token === generation
@@ -109,6 +134,8 @@ export function createNotesSession(
       publish({
         status: 'ready',
         document: document.value,
+        fileId,
+        name: document.value.node.name,
         path: path.value,
         buffer: keep ? previous.buffer : document.value.content.text,
         baseline: keep ? previous.baseline : document.value.content.text,
@@ -134,6 +161,7 @@ export function createNotesSession(
     resolve?.(allow)
   }
   function save(): Promise<boolean> {
+    if (pendingCreate) return pendingCreate.then(() => false)
     if (pendingSave) return pendingSave
     if (
       !running ||
@@ -144,6 +172,7 @@ export function createNotesSession(
     )
       return Promise.resolve(false)
     if (!snapshot.dirty) return Promise.resolve(true)
+    const sourceId = fileId
     const text = snapshot.buffer,
       revision = snapshot.baselineRevision,
       token = lifetime
@@ -155,7 +184,7 @@ export function createNotesSession(
       try {
         if (!running || lifetime !== token) return false
         const result = await vfs.writeFile(
-          fileId,
+          sourceId,
           { kind: 'text', encoding: 'utf-8', text },
           { expectedContentRevision: revision, requestId: id },
         )
@@ -216,6 +245,88 @@ export function createNotesSession(
     publish({ ...snapshot, saving: true, notice: null })
     return operation
   }
+  function saveAs(parentId: NodeId, name: string): Promise<VfsResult<NodeId>> {
+    if (pendingCreate) return pendingCreate
+    if (pendingSave || !running || snapshot.status !== 'ready')
+      return Promise.resolve({
+        ok: false,
+        error: {
+          code: 'INVALID_REQUEST',
+          message: 'A save is already running.',
+        },
+      })
+    let created = false
+    const text = snapshot.buffer,
+      token = lifetime
+    ++generation
+    const operation = Promise.resolve().then(
+      async (): Promise<VfsResult<NodeId>> => {
+        try {
+          if (!running || token !== lifetime)
+            return {
+              ok: false,
+              error: { code: 'INVALID_REQUEST', message: 'Document closed.' },
+            }
+          const result = await vfs.createFile(parentId, name, {
+            kind: 'text',
+            encoding: 'utf-8',
+            text,
+          })
+          if (!running || token !== lifetime || snapshot.status !== 'ready')
+            return result
+          if (!result.ok) {
+            publish({
+              ...snapshot,
+              saving: false,
+              notice: message(result.error.code),
+            })
+            return result
+          }
+          created = true
+          fileId = result.value
+          onFileBound(fileId)
+          publish({
+            ...snapshot,
+            fileId,
+            name: name.normalize('NFC'),
+            document: null,
+            path: '',
+            baseline: text,
+            baselineRevision: 1,
+            dirty: snapshot.buffer !== text,
+            saving: false,
+            conflict: false,
+            availability: 'available',
+            notice: null,
+          })
+          return result
+        } catch {
+          if (running && token === lifetime && snapshot.status === 'ready')
+            publish({
+              ...snapshot,
+              saving: false,
+              notice: message('STORAGE_UNAVAILABLE'),
+            })
+          return {
+            ok: false,
+            error: {
+              code: 'STORAGE_UNAVAILABLE',
+              message: 'File could not be created.',
+            },
+          }
+        } finally {
+          if (pendingCreate === operation) {
+            pendingCreate = null
+            if (created && running && token === lifetime && fileId)
+              await reload()
+          }
+        }
+      },
+    )
+    pendingCreate = operation
+    publish({ ...snapshot, saving: true, notice: null })
+    return operation
+  }
   return {
     getSnapshot: () => snapshot,
     subscribe: (listener: () => void) => {
@@ -232,9 +343,13 @@ export function createNotesSession(
       publish({ ...snapshot, buffer, dirty: buffer !== snapshot.baseline })
     },
     save,
+    saveAs,
     requestClose: () => {
       if (closeRequest) return closeRequest
-      if (snapshot.status !== 'ready' || (!snapshot.dirty && !pendingSave))
+      if (
+        snapshot.status !== 'ready' ||
+        (!snapshot.dirty && !pendingSave && !pendingCreate)
+      )
         return Promise.resolve(true)
       closeRequest = new Promise<boolean>((resolve) => {
         finishClose = resolve
@@ -243,10 +358,10 @@ export function createNotesSession(
       return closeRequest
     },
     cancelClose: () => {
-      if (!pendingSave) settleClose(false)
+      if (!pendingSave && !pendingCreate) settleClose(false)
     },
     discardClose: () => {
-      if (!pendingSave) settleClose(true)
+      if (!pendingSave && !pendingCreate) settleClose(true)
     },
     saveAndClose: async () => {
       if (!closeRequest) return
@@ -265,16 +380,16 @@ export function createNotesSession(
       if (running) return
       running = true
       ++lifetime
-      if (!fileId) return
       offVfs = vfs.subscribe({ kind: 'all' }, (event) => {
-        if (event.originRequestId === requestId) return
+        const currentId = fileId
+        if (!currentId || event.originRequestId === requestId) return
         if (
           [
             event.contentIds,
             event.metadataIds,
             event.pathIds,
             event.removedIds,
-          ].some((ids) => ids.includes(fileId))
+          ].some((ids) => ids.includes(currentId))
         ) {
           void reload()
         }
@@ -296,6 +411,7 @@ export function createNotesSession(
       settleClose(false)
       if (snapshot.status === 'ready') publish({ ...snapshot, saving: false })
       pendingSave = null
+      pendingCreate = null
       requestId = null
       offVfs?.()
       offRefresh?.()

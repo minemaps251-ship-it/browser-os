@@ -61,8 +61,7 @@ export function createFileOpeningService(
           (process) =>
             process.appId === appId &&
             process.status === 'running' &&
-            process.launchInput.kind === 'file' &&
-            process.launchInput.fileId === id,
+            process.documentFileId === id,
         )
       const window =
         existing &&

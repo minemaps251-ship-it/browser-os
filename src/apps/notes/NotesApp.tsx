@@ -1,5 +1,6 @@
 import { useId, useRef } from 'react'
 import type { ApplicationProps } from '../../app/builtInApps'
+import { SaveAsDialog } from './SaveAsDialog'
 import { Dialog } from '../../ui/Dialog'
 import { useNotesDocument } from './useNotesDocument'
 import styles from './NotesApp.module.css'
@@ -11,9 +12,7 @@ export default function NotesApp(props: ApplicationProps) {
     closeDescriptionId = useId()
   return (
     <div className={styles.app}>
-      {snapshot.status === 'idle' && (
-        <p>Open a text file from Files to read it in Notes.</p>
-      )}
+      <button onClick={notes.newDocument}>New document</button>
       {snapshot.status === 'loading' && <p role="status">Loading file…</p>}
       {snapshot.status === 'error' && (
         <>
@@ -23,20 +22,23 @@ export default function NotesApp(props: ApplicationProps) {
       )}
       {snapshot.status === 'ready' && (
         <>
-          <h2 className={styles.title}>{snapshot.document.node.name}</h2>
+          <h2 className={styles.title}>{snapshot.name}</h2>
           <p className={styles.path}>{snapshot.path}</p>
           <div className={styles.actions}>
             <button
               ref={saveButton}
               disabled={
                 snapshot.saving ||
-                !snapshot.dirty ||
+                (!!snapshot.fileId && !snapshot.dirty) ||
                 snapshot.conflict ||
                 snapshot.availability !== 'available'
               }
               onClick={() => void notes.save()}
             >
               Save
+            </button>
+            <button disabled={snapshot.saving} onClick={notes.openSaveAs}>
+              Save as
             </button>
             <p role="status">
               {snapshot.saving
@@ -47,7 +49,9 @@ export default function NotesApp(props: ApplicationProps) {
                     ? 'File unavailable — text kept'
                     : snapshot.dirty
                       ? 'Unsaved changes'
-                      : 'Saved'}
+                      : snapshot.fileId
+                        ? 'Saved'
+                        : 'Not saved'}
             </p>
           </div>
           {snapshot.notice && <p role="alert">{snapshot.notice}</p>}
@@ -84,7 +88,16 @@ export default function NotesApp(props: ApplicationProps) {
               <p className={styles.hint}>This file is empty.</p>
             )}
           </section>
-          {snapshot.closing && (
+          {notes.saveAsOpen && (
+            <SaveAsDialog
+              initialName={snapshot.fileId ? snapshot.name : 'Untitled.txt'}
+              save={notes.saveAs}
+              onSaved={notes.savedAs}
+              onCancel={notes.cancelSaveAs}
+              returnFocus={saveButton}
+            />
+          )}
+          {snapshot.closing && !notes.saveAsOpen && (
             <Dialog
               label="Unsaved changes"
               descriptionId={closeDescriptionId}
@@ -93,8 +106,7 @@ export default function NotesApp(props: ApplicationProps) {
             >
               <h2>Save changes before closing?</h2>
               <p id={closeDescriptionId}>
-                Your changes to “{snapshot.document.node.name}” have not been
-                saved.
+                Your changes to “{snapshot.name}” have not been saved.
               </p>
               {snapshot.notice && <p role="alert">{snapshot.notice}</p>}
               {snapshot.saving && <p role="status">Saving… Please wait.</p>}

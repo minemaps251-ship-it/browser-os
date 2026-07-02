@@ -78,7 +78,7 @@ it('reads coherent text, follows rename/move/content changes and reports deletio
     workspace.dispose()
   }
 })
-it('supports idle, error/retry and restart without leaking subscriptions', async () => {
+it('supports untitled, error/retry and restart without leaking subscriptions', async () => {
   const { workspace, fileId, home } = await fixture()
   const idle = createNotesSession(workspace.vfs, workspace.refresh, null)
   const read = vi.spyOn(workspace.vfs, 'readFile')
@@ -86,7 +86,12 @@ it('supports idle, error/retry and restart without leaking subscriptions', async
   await idle.retry()
   idle.stop()
   expect(read).not.toHaveBeenCalled()
-  expect(idle.getSnapshot().status).toBe('idle')
+  expect(idle.getSnapshot()).toMatchObject({
+    status: 'ready',
+    fileId: null,
+    buffer: '',
+    dirty: false,
+  })
   read.mockResolvedValueOnce({
     ok: false,
     error: { code: 'STORAGE_UNAVAILABLE', message: 'unavailable' },

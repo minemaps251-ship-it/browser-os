@@ -3,7 +3,7 @@ import type { AppId } from '../../core/shared/ids'
 export const notesManifest: ApplicationManifest = {
   id: 'notes' as AppId,
   name: 'Notes',
-  description: 'Read text files from your workspace.',
+  description: 'Write and save text documents.',
   icon: 'N',
   instancePolicy: 'multiple',
   fileAssociations: [{ mime: 'text/plain', default: true }],
