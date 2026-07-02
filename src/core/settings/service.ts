@@ -6,6 +6,7 @@ import {
   type ThemePreference,
 } from './types'
 export interface SettingsSnapshot {
+  readonly failedTheme: ThemePreference | null
   readonly theme: ThemePreference
   readonly saving: boolean
   readonly loading: boolean
@@ -18,6 +19,7 @@ export function createSettingsService(
   onListenerError?: (error: unknown) => void,
 ) {
   let snapshot: SettingsSnapshot = Object.freeze({
+    failedTheme: null,
     theme: 'system',
     saving: false,
     loading: false,
@@ -73,7 +75,7 @@ export function createSettingsService(
         return settingsFailure('DISPOSED', 'Settings have been closed.')
       if (busy) return settingsFailure('BUSY', 'Settings are being updated.')
       busy = true
-      publish({ ...snapshot, loading: true, error: null })
+      publish({ ...snapshot, loading: true, error: null, failedTheme: null })
       try {
         const result = await repository.readTheme()
         if (disposed)
@@ -83,6 +85,7 @@ export function createSettingsService(
           return result
         }
         publish({
+          failedTheme: null,
           theme: result.ok ? result.value : 'system',
           saving: false,
           loading: false,
@@ -110,7 +113,7 @@ export function createSettingsService(
       if (theme === snapshot.theme && !snapshot.warning)
         return { ok: true, value: undefined }
       busy = true
-      publish({ ...snapshot, saving: true, error: null })
+      publish({ ...snapshot, saving: true, error: null, failedTheme: null })
       try {
         const result = await repository.writeTheme(theme)
         if (disposed)
@@ -118,13 +121,19 @@ export function createSettingsService(
         publish(
           result.ok
             ? {
+                failedTheme: null,
                 theme,
                 saving: false,
                 loading: false,
                 warning: null,
                 error: null,
               }
-            : { ...snapshot, saving: false, error: result.error.message },
+            : {
+                ...snapshot,
+                saving: false,
+                error: result.error.message,
+                failedTheme: theme,
+              },
         )
         return result
       } catch {
@@ -132,7 +141,12 @@ export function createSettingsService(
           'STORAGE_UNAVAILABLE',
           'The appearance setting could not be saved. Please retry.',
         )
-        publish({ ...snapshot, saving: false, error: result.error.message })
+        publish({
+          ...snapshot,
+          saving: false,
+          error: result.error.message,
+          failedTheme: theme,
+        })
         return result
       } finally {
         finish()

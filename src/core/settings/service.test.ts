@@ -198,3 +198,34 @@ it('blocks updates during a read and does not apply a late read after dispose', 
   })
   expect(settings.getSnapshot().theme).toBe('system')
 })
+
+it('tracks only the latest failed preference and clears the retry target on commit/load', async () => {
+  const f = fixture()
+  f.write.mockResolvedValueOnce(settingsFailure('QUOTA', 'Full'))
+  await f.settings.setTheme('dark')
+  expect(f.settings.getSnapshot()).toMatchObject({
+    theme: 'system',
+    failedTheme: 'dark',
+  })
+  f.write.mockRejectedValueOnce(new Error('Unavailable'))
+  await f.settings.setTheme('light')
+  expect(f.settings.getSnapshot()).toMatchObject({
+    theme: 'system',
+    failedTheme: 'light',
+  })
+  await f.settings.setTheme(f.settings.getSnapshot().failedTheme!)
+  expect(f.settings.getSnapshot()).toMatchObject({
+    theme: 'light',
+    failedTheme: null,
+    error: null,
+  })
+  f.write.mockResolvedValueOnce(settingsFailure('QUOTA', 'Full'))
+  await f.settings.setTheme('dark')
+  await f.settings.load()
+  expect(f.settings.getSnapshot()).toMatchObject({
+    theme: 'light',
+    failedTheme: null,
+    error: null,
+  })
+  f.settings.dispose()
+})

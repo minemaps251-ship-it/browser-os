@@ -184,7 +184,14 @@ for (const failure of ['quota', 'abort'] as const) {
       schemaVersion: 1,
       value: 'system',
     })
-    await choice.selectOption('dark')
+    if (failure === 'quota') {
+      await page
+        .getByRole('button', { name: 'Open Settings', exact: true })
+        .click()
+      const settings = page.getByRole('region', { name: 'Settings window' })
+      await expect(settings.getByRole('alert')).toContainText('storage is full')
+      await settings.getByRole('button', { name: 'Retry appearance' }).click()
+    } else await choice.selectOption('dark')
     await expect(choice).toHaveValue('dark')
     await expect(page.getByRole('alert')).toHaveCount(0)
     expect(await themeRecord(page, 'get')).toEqual({

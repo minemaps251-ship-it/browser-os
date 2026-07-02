@@ -2,6 +2,7 @@ import type { ProcessId } from '../core/shared/ids'
 import type { ApplicationLaunchInput } from '../core/applications/launchInput'
 import type { ComponentType } from 'react'
 import type { ApplicationManifest } from '../core/applications/registry'
+import { settingsManifest } from '../apps/settings/manifest'
 import { notesManifest } from '../apps/notes/manifest'
 import { terminalManifest } from '../apps/terminal/manifest'
 import { filesManifest } from '../apps/files/manifest'
@@ -23,4 +24,8 @@ export const builtInApps: readonly AppRegistration[] = [
     load: () => import('../apps/terminal/TerminalApp'),
   },
   { manifest: notesManifest, load: () => import('../apps/notes/NotesApp') },
+  {
+    manifest: settingsManifest,
+    load: () => import('../apps/settings/SettingsApp'),
+  },
 ]

@@ -1,25 +1,22 @@
-import { useSyncExternalStore } from 'react'
+import { useAppearanceSettings } from '../../ui/useAppearanceSettings'
 import { isThemePreference } from '../../core/settings/types'
 import type { SettingsService } from '../../core/settings/service'
 import styles from './ThemeControl.module.css'
 export function ThemeControl({ settings }: { settings: SettingsService }) {
-  const snapshot = useSyncExternalStore(
-    settings.subscribe,
-    settings.getSnapshot,
-  )
+  const { snapshot, busy, selectTheme } = useAppearanceSettings(settings)
   return (
     <div className={styles.control}>
       <select
         aria-label="Appearance"
         className={styles.select}
         value={snapshot.theme}
-        disabled={snapshot.saving || snapshot.loading}
+        disabled={busy}
         aria-describedby={
           snapshot.error || snapshot.warning ? 'appearance-message' : undefined
         }
         onChange={(event) => {
           const value = event.target.value
-          if (isThemePreference(value)) void settings.setTheme(value)
+          if (isThemePreference(value)) selectTheme(value)
         }}
       >
         <option value="system">System</option>
