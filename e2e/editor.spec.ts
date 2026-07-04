@@ -13,7 +13,7 @@ test('Files opens Editor independently, keyboard save shares text with Terminal 
   await expect(create).toBeHidden()
   await files.getByRole('button', { name: 'Open in Code Editor' }).click()
   const editor = page.getByRole('region', { name: 'Code Editor window' })
-  const code = editor.getByRole('textbox', { name: 'Code' })
+  const code = editor.locator('.cm-content[contenteditable="true"]')
   await code.fill('const answer = 42;\n<script>literal</script>')
   await code.press('Control+s')
   await expect(
@@ -24,7 +24,10 @@ test('Files opens Editor independently, keyboard save shares text with Terminal 
     .click()
   await files.getByRole('button', { name: 'Open in Code Editor' }).click()
   await expect(editor).toHaveCount(1)
-  await expect(code).toHaveValue('const answer = 42;\n<script>literal</script>')
+  await expect(code.locator('.cm-line')).toHaveText([
+    'const answer = 42;',
+    '<script>literal</script>',
+  ])
   await code.fill('unsaved draft')
   await editor
     .getByRole('button', { name: 'Close Code Editor', exact: true })
@@ -35,7 +38,7 @@ test('Files opens Editor independently, keyboard save shares text with Terminal 
   ).toBeFocused()
   await page.keyboard.press('Escape')
   await expect(close).toBeHidden()
-  await expect(code).toHaveValue('unsaved draft')
+  await expect(code).toHaveText('unsaved draft')
   await editor
     .getByRole('button', { name: 'Close Code Editor', exact: true })
     .click()
@@ -54,7 +57,10 @@ test('Files opens Editor independently, keyboard save shares text with Terminal 
     .getByRole('button', { name: 'Select file source.txt', exact: true })
     .click()
   await files.getByRole('button', { name: 'Open in Code Editor' }).click()
-  await expect(code).toHaveValue('const answer = 42;\n<script>literal</script>')
+  await expect(code.locator('.cm-line')).toHaveText([
+    'const answer = 42;',
+    '<script>literal</script>',
+  ])
   await editor
     .getByRole('button', { name: 'Minimize Code Editor', exact: true })
     .click()
@@ -75,7 +81,7 @@ test('new Editor uses Save As and remains keyboard reachable on a narrow viewpor
     .getByRole('button', { name: 'Open Code Editor', exact: true })
     .click()
   const editor = page.getByRole('region', { name: 'Code Editor window' })
-  const code = editor.getByRole('textbox', { name: 'Code' })
+  const code = editor.locator('.cm-content[contenteditable="true"]')
   await expect(code).toBeInViewport()
   await code.fill('hello from Editor')
   await code.press('Control+s')

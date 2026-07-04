@@ -1,7 +1,8 @@
+// Existing session/UI contracts also exercise the native fallback.
 import { StrictMode } from 'react'
 import { act, render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, afterEach, expect, it } from 'vitest'
+import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { BrowserOS } from '../../app/BrowserOS'
 import { createBrowserRuntime } from '../../app/createRuntime'
 import { ROOT_NODE_ID } from '../../core/filesystem/policy'
@@ -170,3 +171,8 @@ it('preserves all drafts on aggregate Cancel and warns on unload for inactive di
   window.dispatchEvent(afterUnload)
   expect(afterUnload.defaultPrevented).toBe(false)
 })
+
+vi.mock('./engine/load', () => ({
+  loadEditorEngine: () =>
+    Promise.reject(new Error('Unavailable in fallback fixture')),
+}))

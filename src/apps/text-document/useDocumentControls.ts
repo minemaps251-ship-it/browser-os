@@ -46,7 +46,7 @@ export function useDocumentControls(
     onCompositionEnd: () => {
       composing.current = false
     },
-    onEditorKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    onEditorKeyDown: (event: KeyboardEvent<HTMLElement>) => {
       if (
         (event.ctrlKey || event.metaKey) &&
         !event.altKey &&

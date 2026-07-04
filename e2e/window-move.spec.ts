@@ -128,7 +128,7 @@ test('cancels pointercancel and releases resources when a dragging window closes
     // Programmatic close deliberately covers unmount while the pointer is captured.
     await page
       .getByRole('button', { name: 'Close About BrowserOS' })
-      .evaluate((button) => button.click())
+      .evaluate((button) => (button as HTMLElement).click())
     await page.mouse.up()
     await expect(frame).toHaveCount(0)
     await page.getByRole('button', { name: 'Open About BrowserOS' }).click()

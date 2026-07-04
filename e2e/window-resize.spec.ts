@@ -85,7 +85,7 @@ test('constrains minimum/maximum, rolls back cancellation, and survives close du
     await page.mouse.move(box.x + 30, box.y + 30)
     await page
       .getByRole('button', { name: 'Close About BrowserOS' })
-      .evaluate((button) => button.click())
+      .evaluate((button) => (button as HTMLElement).click())
     await page.mouse.up()
     await expect(frame).toHaveCount(0)
     await page.getByRole('button', { name: 'Open About BrowserOS' }).click()

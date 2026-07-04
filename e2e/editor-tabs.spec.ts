@@ -26,7 +26,7 @@ test('tabs keep independent drafts, save and close only the active file, restore
 }) => {
   const { editor, files } = await openTwo(page)
   await editor.getByRole('tab', { name: 'one.txt', exact: true }).click()
-  const code = editor.getByRole('textbox', { name: 'Code' })
+  const code = editor.locator('.cm-content[contenteditable="true"]')
   await code.fill('first draft')
   await editor.getByRole('tab', { name: 'two.txt', exact: true }).click()
   await code.fill('second saved')
@@ -42,7 +42,7 @@ test('tabs keep independent drafts, save and close only the active file, restore
     exact: true,
   })
   await expect(first).toBeFocused()
-  await expect(code).toHaveValue('first draft')
+  await expect(code).toHaveText('first draft')
   await page.keyboard.press('Delete')
   const close = page.getByRole('dialog', { name: 'Unsaved changes' })
   await expect(
@@ -50,14 +50,14 @@ test('tabs keep independent drafts, save and close only the active file, restore
   ).toBeFocused()
   await page.keyboard.press('Escape')
   await expect(close).toBeHidden()
-  await expect(code).toHaveValue('first draft')
+  await expect(code).toHaveText('first draft')
   await editor
     .getByRole('button', { name: 'Close tab one.txt', exact: true })
     .click()
   await close.getByRole('button', { name: 'Save and close' }).click()
   await expect(editor.getByRole('tab')).toHaveCount(1)
   await expect(second).toBeFocused()
-  await expect(code).toHaveValue('second saved')
+  await expect(code).toHaveText('second saved')
   await editor
     .getByRole('button', { name: 'Minimize Code Editor', exact: true })
     .click()
@@ -66,7 +66,7 @@ test('tabs keep independent drafts, save and close only the active file, restore
     .click()
   await files.getByRole('button', { name: 'Open in Code Editor' }).click()
   await expect(editor.getByRole('tab')).toHaveCount(2)
-  await expect(code).toHaveValue('first draft')
+  await expect(code).toHaveText('first draft')
   await editor
     .getByRole('button', { name: 'Minimize Code Editor', exact: true })
     .click()
@@ -87,7 +87,7 @@ test('tabs keep independent drafts, save and close only the active file, restore
     .getByRole('button', { name: 'Select file one.txt', exact: true })
     .click()
   await files.getByRole('button', { name: 'Open in Code Editor' }).click()
-  await expect(code).toHaveValue('first draft')
+  await expect(code).toHaveText('first draft')
   await expect(editor.getByRole('tab')).toHaveCount(1)
 })
 test('aggregate close retains earlier discarded drafts on Cancel and saves an Untitled tab through a single Save As dialog', async ({
@@ -95,7 +95,7 @@ test('aggregate close retains earlier discarded drafts on Cancel and saves an Un
 }) => {
   const { editor } = await openTwo(page)
   await editor.getByRole('tab', { name: 'one.txt', exact: true }).click()
-  const code = editor.getByRole('textbox', { name: 'Code' })
+  const code = editor.locator('.cm-content[contenteditable="true"]')
   await code.fill('first retained')
   await editor.getByRole('tab', { name: 'two.txt', exact: true }).click()
   await code.fill('second retained')
@@ -111,7 +111,7 @@ test('aggregate close retains earlier discarded drafts on Cancel and saves an Un
   await editor
     .getByRole('tab', { name: 'one.txt, unsaved changes', exact: true })
     .click()
-  await expect(code).toHaveValue('first retained')
+  await expect(code).toHaveText('first retained')
   await editor.getByRole('button', { name: 'New tab', exact: true }).click()
   await code.fill('new tab saved')
   await editor
@@ -135,14 +135,14 @@ test('aggregate close retains earlier discarded drafts on Cancel and saves an Un
     .getByRole('button', { name: 'Select file third.txt', exact: true })
     .click()
   await files.getByRole('button', { name: 'Open in Code Editor' }).click()
-  await expect(code).toHaveValue('new tab saved')
+  await expect(code).toHaveText('new tab saved')
 })
 test('inactive tab conflicts are retained and keyboard tab navigation works on a narrow viewport', async ({
   page,
 }) => {
   const { editor, files } = await openTwo(page)
   await editor.getByRole('tab', { name: 'one.txt', exact: true }).click()
-  const code = editor.getByRole('textbox', { name: 'Code' })
+  const code = editor.locator('.cm-content[contenteditable="true"]')
   await code.fill('local draft')
   await editor.getByRole('tab', { name: 'two.txt', exact: true }).click()
   await editor
@@ -171,12 +171,14 @@ test('inactive tab conflicts are retained and keyboard tab navigation works on a
   await expect(
     editor.getByRole('tab', { name: 'one.txt, unsaved changes', exact: true }),
   ).toBeFocused()
-  await expect(code).toHaveValue('local draft')
+  await expect(code).toHaveText('local draft')
   await expect(
     editor.getByRole('button', { name: 'Save', exact: true }),
   ).toBeDisabled()
   await editor.getByRole('button', { name: 'Discard edits and reload' }).click()
-  await expect(code).toHaveValue('outside saved')
+  await expect(code).toHaveText('outside saved')
+  await code.press('ControlOrMeta+z')
+  await expect(code).toHaveText('outside saved')
   await expect(
     editor.getByRole('button', { name: 'Close Code Editor', exact: true }),
   ).toBeInViewport()

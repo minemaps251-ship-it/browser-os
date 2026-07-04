@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react'
+import { useId, useRef, type ReactNode } from 'react'
 import type { ApplicationProps } from '../../app/builtInApps'
 import { SaveAsDialog } from './SaveAsDialog'
 import { Dialog } from '../../ui/Dialog'
@@ -18,10 +18,12 @@ export function TextDocumentView({
   model: notes,
   code = false,
   showNew = true,
+  editor,
 }: {
   model: ReturnType<typeof useDocumentControls>
   code?: boolean
   showNew?: boolean
+  editor?: ReactNode
 }) {
   const { snapshot, retry } = notes
   const saveButton = useRef<HTMLButtonElement>(null)
@@ -90,19 +92,23 @@ export function TextDocumentView({
             tabIndex={0}
             className={styles.content}
           >
-            <label htmlFor={inputId}>{code ? 'Code' : 'Text'}</label>
-            <textarea
-              id={inputId}
-              value={snapshot.buffer}
-              maxLength={1048576}
-              spellCheck={false}
-              wrap={code ? 'off' : 'soft'}
-              onChange={(event) => notes.edit(event.target.value)}
-              onCompositionStart={notes.onCompositionStart}
-              onCompositionEnd={notes.onCompositionEnd}
-              onKeyDown={notes.onEditorKeyDown}
-            />
-            {code && (
+            {editor ?? (
+              <>
+                <label htmlFor={inputId}>{code ? 'Code' : 'Text'}</label>
+                <textarea
+                  id={inputId}
+                  value={snapshot.buffer}
+                  maxLength={1048576}
+                  spellCheck={false}
+                  wrap={code ? 'off' : 'soft'}
+                  onChange={(event) => notes.edit(event.target.value)}
+                  onCompositionStart={notes.onCompositionStart}
+                  onCompositionEnd={notes.onCompositionEnd}
+                  onKeyDown={notes.onEditorKeyDown}
+                />
+              </>
+            )}
+            {code && !editor && (
               <p className={styles.hint}>
                 {snapshot.buffer.split('\n').length} lines ·{' '}
                 {snapshot.buffer.length} characters · Plain text

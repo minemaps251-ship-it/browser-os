@@ -1,5 +1,8 @@
 import { useEffect, useId, useRef } from 'react'
 import type { ApplicationProps } from '../../app/builtInApps'
+import { CodeSurface } from './CodeSurface'
+import { useEngineOwner } from './useEngineOwner'
+import type { EngineOwner } from './engine/owner'
 import { TextDocumentView } from '../text-document/TextDocumentApp'
 import { useDocumentControls } from '../text-document/useDocumentControls'
 import { useEditorWorkspace } from './useEditorWorkspace'
@@ -8,9 +11,11 @@ import styles from './CodeEditorApp.module.css'
 function DocumentPanel({
   tab,
   workspace,
+  owner,
 }: {
   tab: EditorTab
   workspace: EditorWorkspace
+  owner: EngineOwner
 }) {
   const controls = useDocumentControls(
     tab.session,
@@ -19,7 +24,14 @@ function DocumentPanel({
     },
     { onModalChange: workspace.setModalOpen, warnOnExit: false },
   )
-  return <TextDocumentView model={controls} code showNew={false} />
+  return (
+    <TextDocumentView
+      model={controls}
+      code
+      showNew={false}
+      editor={<CodeSurface tab={tab} owner={owner} model={controls} />}
+    />
+  )
 }
 function tabName(tab: EditorTab) {
   return tab.document.status === 'ready'
@@ -30,6 +42,7 @@ function tabName(tab: EditorTab) {
 }
 export default function CodeEditorApp(props: ApplicationProps) {
   const { workspace, snapshot } = useEditorWorkspace(props)
+  const owner = useEngineOwner(workspace)
   const prefix = useId()
   const buttons = useRef(new Map<string, HTMLButtonElement>())
   const previous = useRef(snapshot.activeId)
@@ -137,7 +150,7 @@ export default function CodeEditorApp(props: ApplicationProps) {
           hidden={tab.id !== snapshot.activeId}
         >
           {tab.id === snapshot.activeId && (
-            <DocumentPanel tab={tab} workspace={workspace} />
+            <DocumentPanel tab={tab} workspace={workspace} owner={owner} />
           )}
         </section>
       ))}

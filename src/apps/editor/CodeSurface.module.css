@@ -1,0 +1,24 @@
+.surface,
+.host {
+  min-width: 0;
+}
+.label,
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+.label {
+  margin: 0 0 8px;
+}
+.host {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  overflow: hidden;
+}
+.host:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.surface textarea {
+  min-height: 240px;
+}

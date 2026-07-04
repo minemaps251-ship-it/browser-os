@@ -1,7 +1,8 @@
+// Existing session/UI contracts also exercise the native fallback.
 import { StrictMode } from 'react'
 import { act, render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { BrowserOS } from '../../app/BrowserOS'
 import { createBrowserRuntime } from '../../app/createRuntime'
 import { ROOT_NODE_ID } from '../../core/filesystem/policy'
@@ -91,3 +92,8 @@ it('isolates Editor and Notes buffers, preserves conflicts/deleted text, and res
     act(() => runtime.dispose())
   }
 })
+
+vi.mock('./engine/load', () => ({
+  loadEditorEngine: () =>
+    Promise.reject(new Error('Unavailable in fallback fixture')),
+}))
