@@ -6,6 +6,7 @@ export const editorManifest: ApplicationManifest = {
   description: 'Edit text and source files.',
   icon: '</>',
   instancePolicy: 'multiple',
+  fileOpenPolicy: 'reuse-window',
   fileAssociations: [{ mime: 'text/plain' }],
   window: {
     defaultSize: { width: 720, height: 520 },

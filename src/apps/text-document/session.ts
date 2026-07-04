@@ -153,7 +153,9 @@ export function createTextDocumentSession(
       if (valid()) readError('STORAGE_UNAVAILABLE')
     }
   }
+  let approvedCloseVersion: number | null = null
   function settleClose(allow: boolean) {
+    approvedCloseVersion = allow ? editVersion : null
     const resolve = finishClose
     closeRequest = null
     finishClose = null
@@ -344,13 +346,20 @@ export function createTextDocumentSession(
     },
     save,
     saveAs,
+    resetCloseApproval: () => {
+      approvedCloseVersion = null
+    },
+    hasCloseApproval: () =>
+      approvedCloseVersion === editVersion && !pendingSave && !pendingCreate,
     requestClose: () => {
       if (closeRequest) return closeRequest
       if (
         snapshot.status !== 'ready' ||
         (!snapshot.dirty && !pendingSave && !pendingCreate)
-      )
+      ) {
+        approvedCloseVersion = editVersion
         return Promise.resolve(true)
+      }
       closeRequest = new Promise<boolean>((resolve) => {
         finishClose = resolve
       })

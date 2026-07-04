@@ -3,6 +3,7 @@ import type { ApplicationProps } from '../../app/builtInApps'
 import { SaveAsDialog } from './SaveAsDialog'
 import { Dialog } from '../../ui/Dialog'
 import { useTextDocument } from './useTextDocument'
+import type { useDocumentControls } from './useDocumentControls'
 import type { AppId } from '../../core/shared/ids'
 import styles from './TextDocument.module.css'
 export function TextDocumentApp({
@@ -11,13 +12,24 @@ export function TextDocumentApp({
   ...props
 }: ApplicationProps & { appId: AppId; code?: boolean }) {
   const notes = useTextDocument(props, appId)
+  return <TextDocumentView model={notes} code={code} />
+}
+export function TextDocumentView({
+  model: notes,
+  code = false,
+  showNew = true,
+}: {
+  model: ReturnType<typeof useDocumentControls>
+  code?: boolean
+  showNew?: boolean
+}) {
   const { snapshot, retry } = notes
   const saveButton = useRef<HTMLButtonElement>(null)
   const inputId = useId(),
     closeDescriptionId = useId()
   return (
     <div className={`${styles.app} ${code ? styles.code : ''}`}>
-      <button onClick={notes.newDocument}>New document</button>
+      {showNew && <button onClick={notes.newDocument}>New document</button>}
       {snapshot.status === 'loading' && <p role="status">Loading file…</p>}
       {snapshot.status === 'error' && (
         <>

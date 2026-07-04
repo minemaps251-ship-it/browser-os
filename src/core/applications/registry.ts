@@ -12,6 +12,7 @@ export interface ApplicationManifest {
     readonly default?: boolean
   }[]
   readonly instancePolicy: 'singleton' | 'multiple'
+  readonly fileOpenPolicy?: 'reuse-window'
   readonly window: { readonly defaultSize: Size; readonly minSize: Size }
 }
 
@@ -38,6 +39,13 @@ export function createRegistry(manifests: readonly ApplicationManifest[]) {
       throw new Error(`Invalid or duplicate application: ${manifest.id}`)
     }
     const associations = manifest.fileAssociations ?? []
+    if (
+      manifest.fileOpenPolicy !== undefined &&
+      (manifest.fileOpenPolicy !== 'reuse-window' ||
+        manifest.instancePolicy !== 'multiple' ||
+        !associations.length)
+    )
+      throw new Error(`Invalid file open policy: ${manifest.id}`)
     const types = new Set<string>()
     for (const association of associations) {
       if (

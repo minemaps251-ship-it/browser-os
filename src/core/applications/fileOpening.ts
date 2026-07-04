@@ -79,7 +79,7 @@ export function createFileOpeningService(
         Object.values(runtime.windows.getState().byId).find(
           (window) => window?.processId === existing.id,
         )
-      if (window) {
+      if (window && handler.fileOpenPolicy !== 'reuse-window') {
         runtime.restoreWindow(window.id)
         return { ok: true, windowId: window.id, processId: window.processId }
       }

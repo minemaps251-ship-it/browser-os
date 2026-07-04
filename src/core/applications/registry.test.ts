@@ -95,3 +95,20 @@ it('rejects duplicate defaults, invalid MIME, duplicate MIME and singleton file 
     ]),
   ).toThrow('association')
 })
+
+it('allows reuse-window only for a multiple-instance file handler', () => {
+  expect(() =>
+    createRegistry([{ ...firstApp, fileOpenPolicy: 'reuse-window' }]),
+  ).toThrow('policy')
+  const handler = {
+    ...firstApp,
+    fileAssociations: [{ mime: 'text/plain' }],
+    fileOpenPolicy: 'reuse-window' as const,
+  }
+  expect(createRegistry([handler]).get(handler.id)?.fileOpenPolicy).toBe(
+    'reuse-window',
+  )
+  expect(() =>
+    createRegistry([{ ...handler, instancePolicy: 'singleton' }]),
+  ).toThrow('policy')
+})

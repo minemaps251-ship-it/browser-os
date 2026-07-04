@@ -38,6 +38,9 @@ interface Dependencies {
   onCleanupError: (error: unknown) => void
 }
 
+// Bound file requests that arrive before a lazy app mounts its receiver.
+const MAX_QUEUED_FILES = 16
+
 export function createRuntime(deps: Dependencies) {
   const windows = createWindowService()
   const processes = new Map<ProcessId, Process>()
@@ -45,7 +48,35 @@ export function createRuntime(deps: Dependencies) {
   const pending = new Map<AppId, Promise<LaunchResult>>()
   const closeGuards = new Map<ProcessId, () => Promise<boolean>>()
   const closing = new Map<WindowId, Promise<boolean>>()
+  const fileReceivers = new Map<ProcessId, (fileId: NodeId) => boolean>()
+  const fileInbox = new Map<ProcessId, Set<NodeId>>()
   let disposed = false
+  function deliverFile(processId: ProcessId, fileId: NodeId): boolean {
+    const process = processes.get(processId)
+    if (
+      disposed ||
+      process?.status !== 'running' ||
+      deps.registry.get(process.appId)?.fileOpenPolicy !== 'reuse-window'
+    )
+      return false
+    const receiver = fileReceivers.get(processId)
+    if (receiver) {
+      try {
+        return receiver(fileId)
+      } catch {
+        return false
+      }
+    }
+    const inbox = fileInbox.get(processId) ?? new Set<NodeId>()
+    if (inbox.size >= MAX_QUEUED_FILES && !inbox.has(fileId)) return false
+    inbox.add(fileId)
+    fileInbox.set(processId, inbox)
+    return true
+  }
+  function forgetReceiver(processId: ProcessId) {
+    fileReceivers.delete(processId)
+    fileInbox.delete(processId)
+  }
 
   async function start(
     appId: AppId,
@@ -117,11 +148,25 @@ export function createRuntime(deps: Dependencies) {
         ok: false,
         message: 'Application does not accept file launches.',
       })
-    if (manifest?.instancePolicy === 'singleton') {
+    if (
+      manifest?.instancePolicy === 'singleton' ||
+      manifest?.fileOpenPolicy === 'reuse-window'
+    ) {
       const existing = Object.values(windows.read.getState().byId).find(
-        (window) => window?.appId === appId,
+        (window) =>
+          window?.appId === appId &&
+          processes.get(window.processId)?.status !== 'crashed',
       )
       if (existing) {
+        if (
+          input.kind === 'file' &&
+          !deliverFile(existing.processId, input.fileId)
+        )
+          return Promise.resolve({
+            ok: false,
+            message:
+              'Finish closing documents or close a tab before opening another file.',
+          })
         windows.restore(existing.id)
         return Promise.resolve({
           ok: true,
@@ -130,7 +175,19 @@ export function createRuntime(deps: Dependencies) {
         })
       }
       const starting = pending.get(appId)
-      if (starting) return starting
+      if (starting)
+        return input.kind === 'file' &&
+          manifest.fileOpenPolicy === 'reuse-window'
+          ? starting.then((result) =>
+              result.ok && !deliverFile(result.processId, input.fileId)
+                ? {
+                    ok: false,
+                    message:
+                      'The file could not be delivered to the application.',
+                  }
+                : result,
+            )
+          : starting
     }
     const launchInput: ApplicationLaunchInput = Object.freeze(
       input.kind === 'file'
@@ -138,7 +195,10 @@ export function createRuntime(deps: Dependencies) {
         : { kind: 'default' },
     )
     const promise = start(appId, launchInput)
-    if (manifest?.instancePolicy === 'singleton') {
+    if (
+      manifest?.instancePolicy === 'singleton' ||
+      manifest?.fileOpenPolicy === 'reuse-window'
+    ) {
       pending.set(appId, promise)
       void promise.finally(() => {
         if (pending.get(appId) === promise) pending.delete(appId)
@@ -150,6 +210,7 @@ export function createRuntime(deps: Dependencies) {
     const window = windows.read.getState().byId[id]
     if (!window) return
     closeGuards.delete(window.processId)
+    forgetReceiver(window.processId)
     closing.delete(id)
     windows.remove(id)
     scopes.get(window.processId)?.dispose()
@@ -242,7 +303,29 @@ export function createRuntime(deps: Dependencies) {
         if (closeGuards.get(processId) === guard) closeGuards.delete(processId)
       }
     },
-    bindProcessDocument: (processId: ProcessId, fileId: NodeId) => {
+    registerFileReceiver: (
+      processId: ProcessId,
+      receiver: (id: NodeId) => boolean,
+    ) => {
+      const process = processes.get(processId)
+      if (
+        disposed ||
+        process?.status !== 'running' ||
+        deps.registry.get(process.appId)?.fileOpenPolicy !== 'reuse-window'
+      )
+        return () => {}
+      if (fileReceivers.has(processId))
+        throw new Error('A file receiver is already registered.')
+      fileReceivers.set(processId, receiver)
+      const inbox = fileInbox.get(processId)
+      fileInbox.delete(processId)
+      inbox?.forEach((id) => receiver(id))
+      return () => {
+        if (fileReceivers.get(processId) === receiver)
+          fileReceivers.delete(processId)
+      }
+    },
+    bindProcessDocument: (processId: ProcessId, fileId: NodeId | null) => {
       const process = processes.get(processId)
       const manifest = process && deps.registry.get(process.appId)
       if (
@@ -262,6 +345,7 @@ export function createRuntime(deps: Dependencies) {
       const process = processes.get(window.processId)
       if (process) processes.set(process.id, { ...process, status: 'crashed' })
       closeGuards.delete(window.processId)
+      forgetReceiver(window.processId)
       closing.delete(id)
       scopes.get(window.processId)?.dispose()
     },
@@ -270,6 +354,8 @@ export function createRuntime(deps: Dependencies) {
       disposed = true
       scopes.forEach((scope) => scope.dispose())
       scopes.clear()
+      fileReceivers.clear()
+      fileInbox.clear()
       closeGuards.clear()
       closing.clear()
       for (const id of windows.read.getState().order) windows.remove(id)
