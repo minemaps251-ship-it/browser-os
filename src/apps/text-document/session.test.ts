@@ -3,7 +3,7 @@ import { temporaryWorkspace } from '../../app/workspace'
 import { ROOT_NODE_ID } from '../../core/filesystem/policy'
 import { deferred } from '../../test/fixtures'
 import type { DocumentRead, VfsResult } from '../../core/filesystem/types'
-import { createNotesSession } from './session'
+import { createTextDocumentSession } from './session'
 
 async function fixture() {
   const workspace = temporaryWorkspace()
@@ -19,7 +19,11 @@ async function fixture() {
 }
 it('reads coherent text, follows rename/move/content changes and reports deletion', async () => {
   const { workspace, fileId, home } = await fixture()
-  const session = createNotesSession(workspace.vfs, workspace.refresh, fileId)
+  const session = createTextDocumentSession(
+    workspace.vfs,
+    workspace.refresh,
+    fileId,
+  )
   session.start()
   try {
     await vi.waitFor(() =>
@@ -80,7 +84,7 @@ it('reads coherent text, follows rename/move/content changes and reports deletio
 })
 it('supports untitled, error/retry and restart without leaking subscriptions', async () => {
   const { workspace, fileId, home } = await fixture()
-  const idle = createNotesSession(workspace.vfs, workspace.refresh, null)
+  const idle = createTextDocumentSession(workspace.vfs, workspace.refresh, null)
   const read = vi.spyOn(workspace.vfs, 'readFile')
   idle.start()
   await idle.retry()
@@ -96,8 +100,16 @@ it('supports untitled, error/retry and restart without leaking subscriptions', a
     ok: false,
     error: { code: 'STORAGE_UNAVAILABLE', message: 'unavailable' },
   })
-  const session = createNotesSession(workspace.vfs, workspace.refresh, fileId)
-  const folder = createNotesSession(workspace.vfs, workspace.refresh, home)
+  const session = createTextDocumentSession(
+    workspace.vfs,
+    workspace.refresh,
+    fileId,
+  )
+  const folder = createTextDocumentSession(
+    workspace.vfs,
+    workspace.refresh,
+    home,
+  )
   session.start()
   folder.start()
   try {
@@ -136,7 +148,11 @@ it('ignores stale and stopped reads including restart, and catches unexpected st
   const read = vi
     .spyOn(workspace.vfs, 'readFile')
     .mockImplementationOnce(() => gate.promise)
-  const session = createNotesSession(workspace.vfs, workspace.refresh, fileId)
+  const session = createTextDocumentSession(
+    workspace.vfs,
+    workspace.refresh,
+    fileId,
+  )
   session.start()
   try {
     await workspace.vfs.writeFile(

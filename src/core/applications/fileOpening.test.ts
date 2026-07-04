@@ -122,3 +122,61 @@ it('reports read/load failure, allows retry, and stops late work on disposal', a
     code: 'STOPPED',
   })
 })
+
+it('validates explicit handlers and scopes pending opens and restore by file and app', async () => {
+  const vfs = filesystem()
+  const file = await vfs.createFile(ROOT_NODE_ID, 'code.txt', {
+    kind: 'text',
+    encoding: 'utf-8',
+    text: 'source',
+  })
+  if (!file.ok) throw new Error('Create failed')
+  const alternative: ApplicationManifest = {
+    ...handler,
+    id: 'editor-test' as ApplicationManifest['id'],
+    fileAssociations: [{ mime: 'text/plain' }],
+  }
+  const unsupported: ApplicationManifest = {
+    ...handler,
+    id: 'unsupported-test' as ApplicationManifest['id'],
+    fileAssociations: [],
+  }
+  const gate = deferred<void>()
+  const runtime = createTestRuntime(
+    () => gate.promise,
+    [handler, alternative, unsupported],
+  )
+  const opener = createFileOpeningService(runtime, vfs)
+  try {
+    expect(await opener.openFile(file.value, unsupported.id)).toMatchObject({
+      ok: false,
+      code: 'UNSUPPORTED',
+    })
+    expect(
+      await opener.openFile(file.value, 'missing' as ApplicationManifest['id']),
+    ).toMatchObject({ ok: false, code: 'UNSUPPORTED' })
+    const normal = opener.openFile(file.value)
+    const explicitDefault = opener.openFile(file.value, handler.id)
+    const explicit = opener.openFile(file.value, alternative.id)
+    expect(opener.openFile(file.value, alternative.id)).toBe(explicit)
+    expect(explicit).not.toBe(normal)
+    gate.resolve()
+    const [one, two, same] = await Promise.all([
+      normal,
+      explicit,
+      explicitDefault,
+    ])
+    expect(same).toEqual(one)
+    expect(one.ok && two.ok && one.processId !== two.processId).toBe(true)
+    expect(runtime.listProcesses()).toHaveLength(2)
+    if (!two.ok) throw new Error(two.message)
+    runtime.minimizeWindow(two.windowId)
+    expect(await opener.openFile(file.value, alternative.id)).toEqual(two)
+    expect(runtime.windows.getState().byId[two.windowId]?.status).toBe(
+      'visible',
+    )
+  } finally {
+    opener.dispose()
+    runtime.dispose()
+  }
+})

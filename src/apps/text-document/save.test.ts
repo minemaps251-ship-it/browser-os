@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest'
 import { temporaryWorkspace } from '../../app/workspace'
 import { ROOT_NODE_ID } from '../../core/filesystem/policy'
 import { deferred } from '../../test/fixtures'
-import { createNotesSession } from './session'
+import { createTextDocumentSession } from './session'
 async function fixture() {
   const workspace = temporaryWorkspace()
   const file = await workspace.vfs.createFile(ROOT_NODE_ID, 'note.txt', {
@@ -11,7 +11,7 @@ async function fixture() {
     text: 'Original',
   })
   if (!file.ok) throw new Error('Missing file')
-  const session = createNotesSession(
+  const session = createTextDocumentSession(
     workspace.vfs,
     workspace.refresh,
     file.value,

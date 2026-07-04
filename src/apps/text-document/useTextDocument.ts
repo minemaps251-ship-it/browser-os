@@ -7,18 +7,18 @@ import {
 } from 'react'
 import type { ApplicationProps } from '../../app/builtInApps'
 import { useRuntime } from '../../app/runtimeContext'
-import { notesManifest } from './manifest'
-import { createNotesSession } from './session'
-export function useNotesDocument({
-  launchInput: input,
-  processId,
-}: ApplicationProps) {
+import type { AppId } from '../../core/shared/ids'
+import { createTextDocumentSession } from './session'
+export function useTextDocument(
+  { launchInput: input, processId }: ApplicationProps,
+  appId: AppId,
+) {
   const runtime = useRuntime()
   const composing = useRef(false)
   const [saveAsOpen, setSaveAsOpen] = useState(false)
   // Launch input is immutable for the lifetime of this process.
   const [session] = useState(() =>
-    createNotesSession(
+    createTextDocumentSession(
       runtime.vfs,
       runtime.refresh,
       input.kind === 'file' ? input.fileId : null,
@@ -77,7 +77,7 @@ export function useNotesDocument({
     retry: session.retry,
     edit: session.edit,
     save,
-    newDocument: () => void runtime.launch(notesManifest.id),
+    newDocument: () => void runtime.launch(appId),
     saveAsOpen,
     openSaveAs: () => setSaveAsOpen(true),
     cancelSaveAs: () => setSaveAsOpen(false),

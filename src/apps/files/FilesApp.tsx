@@ -1,3 +1,4 @@
+import type { AppId } from '../../core/shared/ids'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useRuntime } from '../../app/runtimeContext'
 import { createDirectorySession } from './session'
@@ -91,14 +92,14 @@ export default function FilesApp() {
       trigger.current?.focus()
     }
   }, [snapshot, runtime, renaming, deleting, transferring])
-  async function openFile(id: NodeId) {
+  async function openFile(id: NodeId, appId?: AppId) {
     if (openPending.current || renaming || creation || deleting || transferring)
       return
     openPending.current = true
     setOpening(true)
     setOpenError(null)
     try {
-      const result = await runtime.openFile(id)
+      const result = await runtime.openFile(id, appId)
       if (mounted.current && !result.ok) setOpenError(result.message)
     } catch {
       if (mounted.current)
@@ -327,6 +328,25 @@ export default function FilesApp() {
         >
           Open
         </button>
+        {selectedEntry?.kind === 'file' &&
+          runtime.registry
+            .list()
+            .filter(
+              (app) =>
+                app.fileAssociations?.some(
+                  (entry) => entry.mime === selectedEntry.mime,
+                ) &&
+                app.id !== runtime.registry.fileHandler(selectedEntry.mime)?.id,
+            )
+            .map((app) => (
+              <button
+                key={app.id}
+                disabled={opening || !!renaming}
+                onClick={() => void openFile(selectedEntry.id, app.id)}
+              >
+                Open in {app.name}
+              </button>
+            ))}
       </div>
       {opening && <p role="status">Opening file…</p>}
       {openError && <p role="alert">{openError}</p>}

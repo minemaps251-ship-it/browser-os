@@ -22,9 +22,13 @@ export function createFileOpeningService(
   >,
   vfs: Pick<VirtualFileSystem, 'stat'>,
 ) {
-  const pending = new Map<NodeId, Promise<FileOpenResult>>()
+  const pending = new Map<string, Promise<FileOpenResult>>()
+  const launching = new Map<string, Promise<LaunchResult>>()
   let stopped = false
-  async function open(id: NodeId): Promise<FileOpenResult> {
+  async function open(
+    id: NodeId,
+    requestedApp?: AppId,
+  ): Promise<FileOpenResult> {
     if (stopped)
       return { ok: false, code: 'STOPPED', message: 'BrowserOS is stopped.' }
     try {
@@ -46,13 +50,20 @@ export function createFileOpeningService(
           code: 'NOT_FILE',
           message: 'Choose a file to open.',
         }
-      const handler = runtime.registry.fileHandler(node.value.mime)
-      if (!handler)
+      const mime = node.value.mime
+      const handler = requestedApp
+        ? runtime.registry.get(requestedApp)
+        : runtime.registry.fileHandler(node.value.mime)
+      if (
+        !handler ||
+        !handler.fileAssociations?.some((entry) => entry.mime === mime)
+      )
         return {
           ok: false,
           code: 'UNSUPPORTED',
-          message:
-            'No default application is available for this file type yet.',
+          message: requestedApp
+            ? 'The requested application cannot open this file type.'
+            : 'No default application is available for this file type yet.',
         }
       const appId: AppId = handler.id
       const existing = runtime
@@ -72,7 +83,18 @@ export function createFileOpeningService(
         runtime.restoreWindow(window.id)
         return { ok: true, windowId: window.id, processId: window.processId }
       }
-      const result = await runtime.launch(appId, { kind: 'file', fileId: id })
+      // Default and explicit requests can resolve to the same handler.
+      const launchKey = JSON.stringify([id, appId])
+      let operation = launching.get(launchKey)
+      if (!operation) {
+        operation = runtime.launch(appId, { kind: 'file', fileId: id })
+        launching.set(launchKey, operation)
+        const captured = operation
+        void operation.finally(() => {
+          if (launching.get(launchKey) === captured) launching.delete(launchKey)
+        })
+      }
+      const result = await operation
       if (stopped)
         return { ok: false, code: 'STOPPED', message: 'BrowserOS is stopped.' }
       return result.ok
@@ -87,19 +109,21 @@ export function createFileOpeningService(
     }
   }
   return {
-    openFile: (id: NodeId): Promise<FileOpenResult> => {
-      const previous = pending.get(id)
+    openFile: (id: NodeId, requestedApp?: AppId): Promise<FileOpenResult> => {
+      const key = JSON.stringify([id, requestedApp ?? null])
+      const previous = pending.get(key)
       if (previous) return previous
-      const operation = open(id)
-      pending.set(id, operation)
+      const operation = open(id, requestedApp)
+      pending.set(key, operation)
       void operation.finally(() => {
-        if (pending.get(id) === operation) pending.delete(id)
+        if (pending.get(key) === operation) pending.delete(key)
       })
       return operation
     },
     dispose: () => {
       stopped = true
       pending.clear()
+      launching.clear()
     },
   }
 }

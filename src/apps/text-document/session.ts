@@ -6,7 +6,7 @@ import type {
   VfsResult,
 } from '../../core/filesystem/types'
 import type { RefreshService } from '../../core/refresh/service'
-export type NotesVfs = Pick<
+export type TextDocumentVfs = Pick<
   VirtualFileSystem,
   'readFile' | 'pathOf' | 'subscribe' | 'writeFile' | 'createFile'
 >
@@ -23,7 +23,7 @@ interface EditorState {
   readonly availability: 'available' | 'deleted' | 'unavailable'
   readonly notice: string | null
 }
-export type NotesSnapshot =
+export type TextDocumentSnapshot =
   | { readonly status: 'loading' }
   | ({
       readonly status: 'ready'
@@ -50,13 +50,13 @@ function message(code: VfsErrorCode): string {
     return 'The saved file could not be verified. Its data has been preserved.'
   return 'The file could not be read or saved. Your edits have been kept. Retry to continue.'
 }
-export function createNotesSession(
-  vfs: NotesVfs,
+export function createTextDocumentSession(
+  vfs: TextDocumentVfs,
   refresh: Pick<RefreshService, 'subscribe' | 'getSnapshot'>,
   fileId: NodeId | null,
   onFileBound: (id: NodeId) => void = () => {},
 ) {
-  let snapshot: NotesSnapshot = Object.freeze({
+  let snapshot: TextDocumentSnapshot = Object.freeze({
     ...(fileId
       ? { status: 'loading' as const }
       : {
@@ -88,7 +88,7 @@ export function createNotesSession(
   let offVfs: (() => void) | undefined
   let offRefresh: (() => void) | undefined
   const listeners = new Set<() => void>()
-  function publish(next: NotesSnapshot) {
+  function publish(next: TextDocumentSnapshot) {
     snapshot = Object.freeze(next)
     for (const listener of listeners) {
       try {

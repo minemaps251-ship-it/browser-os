@@ -76,3 +76,13 @@
   border-radius: var(--radius-small);
   font: inherit;
 }
+
+.code .content {
+  max-height: none;
+}
+.code .content textarea {
+  min-height: 240px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  tab-size: 2;
+  line-height: 1.5;
+}

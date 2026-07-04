@@ -2,12 +2,12 @@ import { expect, it, vi } from 'vitest'
 import { temporaryWorkspace } from '../../app/workspace'
 import { ROOT_NODE_ID } from '../../core/filesystem/policy'
 import { deferred } from '../../test/fixtures'
-import { createNotesSession } from './session'
+import { createTextDocumentSession } from './session'
 
 it('creates a new document atomically, binds its ID and preserves newer edits during creation', async () => {
   const workspace = temporaryWorkspace()
   const bind = vi.fn()
-  const session = createNotesSession(
+  const session = createTextDocumentSession(
     workspace.vfs,
     workspace.refresh,
     null,
@@ -62,7 +62,7 @@ it('save as preserves original text and recovers a deleted file without losing i
   })
   if (!source.ok) throw new Error('Missing file')
   const bind = vi.fn()
-  const session = createNotesSession(
+  const session = createTextDocumentSession(
     workspace.vfs,
     workspace.refresh,
     source.value,
@@ -110,7 +110,7 @@ it('save as preserves original text and recovers a deleted file without losing i
 it('retains identity and draft on invalid/colliding/failed destinations and ignores late commit after stop', async () => {
   const workspace = temporaryWorkspace()
   const bind = vi.fn()
-  const session = createNotesSession(
+  const session = createTextDocumentSession(
     workspace.vfs,
     workspace.refresh,
     null,
@@ -178,7 +178,7 @@ it('retains identity and draft on invalid/colliding/failed destinations and igno
 it('retains committed identity if the post-create read fails, and retries without creating another file', async () => {
   const workspace = temporaryWorkspace()
   const bind = vi.fn()
-  const session = createNotesSession(
+  const session = createTextDocumentSession(
     workspace.vfs,
     workspace.refresh,
     null,

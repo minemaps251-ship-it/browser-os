@@ -2,7 +2,7 @@ import { useId, type RefObject } from 'react'
 import { Dialog } from '../../ui/Dialog'
 import { useSaveAsDestination } from './useSaveAsDestination'
 import type { NodeId, VfsResult } from '../../core/filesystem/types'
-import styles from './NotesApp.module.css'
+import styles from './TextDocument.module.css'
 export function SaveAsDialog({
   initialName,
   save,
