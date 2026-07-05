@@ -1,0 +1,52 @@
+:root {
+  --text: #20242a;
+  --surface: #fafaf7;
+  --muted: #58616a;
+  --line: #aab0b5;
+  --focus: #2456b8;
+  color: var(--text);
+  background: var(--surface);
+  font: 15px system-ui;
+}
+:root[data-theme='dark'] {
+  --text: #f2f3f5;
+  --surface: #20242a;
+  --muted: #aeb6c0;
+  --line: #687180;
+  --focus: #a3c0ff;
+  color-scheme: dark;
+}
+main {
+  max-width: 900px;
+  margin: 20px auto;
+  padding: 12px;
+}
+nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+button {
+  min-height: 44px;
+  font: inherit;
+}
+#editor {
+  height: 360px;
+  border: 1px solid var(--line);
+}
+textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 240px;
+  font: 14px monospace;
+  background: var(--surface);
+  color: var(--text);
+}
+label {
+  display: block;
+  margin: 8px 0;
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

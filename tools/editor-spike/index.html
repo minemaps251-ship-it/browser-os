@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BrowserOS editor engine spike</title>
+  </head>
+  <body>
+    <main>
+      <h1>Editor engine spike</h1>
+      <p>
+        Isolated experiment. Save counts a shortcut; it does not write files.
+      </p>
+      <nav aria-label="Candidates">
+        <button id="codemirror">CodeMirror</button
+        ><button id="monaco">Monaco</button
+        ><button id="destroy">Dispose</button>
+      </nav>
+      <p id="status" role="status">Textarea</p>
+      <div id="editing">
+        <label for="fallback">Code</label
+        ><textarea id="fallback" spellcheck="false"></textarea>
+        <div id="editor" hidden></div>
+      </div>
+      <button id="after">Save</button>
+    </main>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>
