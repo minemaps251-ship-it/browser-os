@@ -159,3 +159,61 @@ it('tracks the current document independently from immutable launch input and re
   expect(noHandler.bindProcessDocument(other.processId, node)).toBe(false)
   noHandler.dispose()
 })
+
+it('never invokes a queued close guard invalidated before its microtask', async () => {
+  for (const action of ['unregister', 'dispose', 'crash'] as const) {
+    const runtime = createTestRuntime()
+    const result = await runtime.launch(firstApp.id)
+    if (!result.ok) throw new Error('Missing window')
+    const guard = vi.fn(async () => true)
+    const off = runtime.registerCloseGuard(result.processId, guard)
+    const pending = runtime.requestCloseWindow(result.windowId)
+    if (action === 'unregister') off()
+    if (action === 'dispose') runtime.dispose()
+    if (action === 'crash') runtime.reportCrash(result.windowId)
+    expect(await pending).toBe(false)
+    expect(guard).not.toHaveBeenCalled()
+    if (action === 'crash') {
+      runtime.registerCloseGuard(result.processId, guard)
+      runtime.requestCloseWindow(result.windowId)
+      expect(runtime.listProcesses()).toEqual([])
+      expect(guard).not.toHaveBeenCalled()
+    }
+    runtime.dispose()
+  }
+})
+
+it('repeated singleton crash/relaunch/close releases each scope once despite cleanup failures', async () => {
+  const cleanups: ReturnType<typeof vi.fn>[] = []
+  const signals: AbortSignal[] = []
+  const runtime = createTestRuntime(
+    async (_app, scope) => {
+      signals.push(scope.signal)
+      scope.registerCleanup(() => {
+        throw new Error('Failed resource cleanup')
+      })
+      const cleanup = vi.fn()
+      cleanups.push(cleanup)
+      scope.registerCleanup(cleanup)
+    },
+    [{ ...firstApp, instancePolicy: 'singleton' }],
+  )
+  for (let cycle = 0; cycle < 20; cycle++) {
+    const first = await runtime.launch(firstApp.id)
+    if (!first.ok) throw new Error('Missing window')
+    runtime.reportCrash(first.windowId)
+    runtime.reportCrash(first.windowId)
+    const restarted = await runtime.launch(firstApp.id)
+    if (!restarted.ok) throw new Error('Missing restart')
+    expect(restarted.processId).not.toBe(first.processId)
+    runtime.requestCloseWindow(first.windowId)
+    runtime.requestCloseWindow(restarted.windowId)
+    expect(runtime.listProcesses()).toEqual([])
+    expect(runtime.windows.getState().order).toEqual([])
+  }
+  runtime.dispose()
+  runtime.dispose()
+  expect(signals.every((signal) => signal.aborted)).toBe(true)
+  expect(cleanups).toHaveLength(40)
+  for (const cleanup of cleanups) expect(cleanup).toHaveBeenCalledOnce()
+})

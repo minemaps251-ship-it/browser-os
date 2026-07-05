@@ -230,7 +230,15 @@ export function createRuntime(deps: Dependencies) {
     windows.restore(id)
     // Defer invocation so reentrant close requests share the same promise.
     const pendingCloseResult = Promise.resolve()
-      .then(guard)
+      .then(() => {
+        if (
+          disposed ||
+          closeGuards.get(window.processId) !== guard ||
+          windows.read.getState().byId[id]?.processId !== window.processId
+        )
+          return false
+        return guard()
+      })
       .then(
         (allow) => {
           if (
@@ -295,7 +303,8 @@ export function createRuntime(deps: Dependencies) {
       processId: ProcessId,
       guard: () => Promise<boolean>,
     ) => {
-      if (disposed || !processes.has(processId)) return () => {}
+      if (disposed || processes.get(processId)?.status !== 'running')
+        return () => {}
       if (closeGuards.has(processId))
         throw new Error('A close guard is already registered.')
       closeGuards.set(processId, guard)

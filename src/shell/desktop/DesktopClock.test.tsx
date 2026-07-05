@@ -23,3 +23,24 @@ it('updates at the next minute and cleans its only timer under StrictMode', () =
   unmount()
   expect(vi.getTimerCount()).toBe(0)
 })
+
+it('keeps one minute timer under StrictMode and releases it on every unmount', () => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-10-06T12:00:30Z'))
+  for (let cycle = 0; cycle < 5; cycle++) {
+    const mounted = render(
+      <StrictMode>
+        <DesktopClock />
+      </StrictMode>,
+    )
+    expect(vi.getTimerCount()).toBe(1)
+    const before = mounted.container.querySelector('time')!.dateTime
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+    expect(mounted.container.querySelector('time')!.dateTime).not.toBe(before)
+    expect(vi.getTimerCount()).toBe(1)
+    mounted.unmount()
+    expect(vi.getTimerCount()).toBe(0)
+  }
+})
