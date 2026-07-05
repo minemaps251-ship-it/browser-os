@@ -59,92 +59,98 @@ export default function CodeEditorApp(props: ApplicationProps) {
   }, [snapshot.activeId, locked])
   return (
     <div className={styles.app}>
-      <div
-        className={styles.tabs}
-        role="tablist"
-        aria-label="Editor documents"
-        aria-describedby={`${prefix}-hint`}
-      >
-        {snapshot.tabs.map((tab, index) => {
-          const selected = tab.id === snapshot.activeId
-          const dirty = tab.document.status === 'ready' && tab.document.dirty
-          return (
+      <div className={styles.toolbar}>
+        <div
+          className={styles.tabs}
+          role="tablist"
+          aria-label="Editor documents"
+          aria-describedby={`${prefix}-hint`}
+        >
+          {snapshot.tabs.map((tab, index) => {
+            const selected = tab.id === snapshot.activeId
+            const dirty = tab.document.status === 'ready' && tab.document.dirty
+            return (
+              <button
+                key={tab.id}
+                ref={(element) => {
+                  if (element) buttons.current.set(tab.id, element)
+                  else buttons.current.delete(tab.id)
+                }}
+                role="tab"
+                id={`${prefix}-${tab.id}`}
+                aria-controls={`${prefix}-panel-${tab.id}`}
+                aria-selected={selected}
+                aria-label={`${tabName(tab)}${dirty ? ', unsaved changes' : ''}`}
+                aria-disabled={locked}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => workspace.select(tab.id)}
+                onKeyDown={(event) => {
+                  if (
+                    locked ||
+                    event.ctrlKey ||
+                    event.metaKey ||
+                    event.altKey ||
+                    event.nativeEvent.isComposing ||
+                    event.nativeEvent.keyCode === 229
+                  )
+                    return
+                  let target: EditorTab | undefined
+                  if (event.key === 'ArrowRight')
+                    target = snapshot.tabs[(index + 1) % snapshot.tabs.length]
+                  if (event.key === 'ArrowLeft')
+                    target =
+                      snapshot.tabs[
+                        (index - 1 + snapshot.tabs.length) %
+                          snapshot.tabs.length
+                      ]
+                  if (event.key === 'Home') target = snapshot.tabs[0]
+                  if (event.key === 'End') target = snapshot.tabs.at(-1)
+                  if (target) {
+                    event.preventDefault()
+                    workspace.select(target.id)
+                    buttons.current.get(target.id)?.focus()
+                  }
+                  if (event.key === 'Delete') {
+                    event.preventDefault()
+                    void workspace.requestCloseTab(tab.id)
+                  }
+                }}
+              >
+                {tabName(tab)}
+                {dirty && <span aria-hidden="true"> •</span>}
+              </button>
+            )
+          })}
+        </div>
+        <div className={styles.actions}>
+          <button
+            ref={newTabButton}
+            disabled={locked}
+            onClick={() => workspace.newDocument()}
+          >
+            New tab
+          </button>
+          {active && (
             <button
-              key={tab.id}
-              ref={(element) => {
-                if (element) buttons.current.set(tab.id, element)
-                else buttons.current.delete(tab.id)
-              }}
-              role="tab"
-              id={`${prefix}-${tab.id}`}
-              aria-controls={`${prefix}-panel-${tab.id}`}
-              aria-selected={selected}
-              aria-label={`${tabName(tab)}${dirty ? ', unsaved changes' : ''}`}
-              aria-disabled={locked}
-              tabIndex={selected ? 0 : -1}
-              onClick={() => workspace.select(tab.id)}
-              onKeyDown={(event) => {
-                if (
-                  locked ||
-                  event.ctrlKey ||
-                  event.metaKey ||
-                  event.altKey ||
-                  event.nativeEvent.isComposing ||
-                  event.nativeEvent.keyCode === 229
-                )
-                  return
-                let target: EditorTab | undefined
-                if (event.key === 'ArrowRight')
-                  target = snapshot.tabs[(index + 1) % snapshot.tabs.length]
-                if (event.key === 'ArrowLeft')
-                  target =
-                    snapshot.tabs[
-                      (index - 1 + snapshot.tabs.length) % snapshot.tabs.length
-                    ]
-                if (event.key === 'Home') target = snapshot.tabs[0]
-                if (event.key === 'End') target = snapshot.tabs.at(-1)
-                if (target) {
-                  event.preventDefault()
-                  workspace.select(target.id)
-                  buttons.current.get(target.id)?.focus()
-                }
-                if (event.key === 'Delete') {
-                  event.preventDefault()
-                  void workspace.requestCloseTab(tab.id)
-                }
-              }}
+              disabled={locked}
+              aria-label={`Close tab ${tabName(active)}`}
+              title={`Close tab ${tabName(active)}`}
+              onClick={() => void workspace.requestCloseTab(active.id)}
             >
-              {tabName(tab)}
-              {dirty && <span aria-hidden="true"> •</span>}
+              Close tab
             </button>
-          )
-        })}
+          )}
+        </div>
       </div>
       <p id={`${prefix}-hint`} className={styles.hint}>
         Arrow keys switch tabs. Delete closes the selected tab.
       </p>
-      <div className={styles.actions}>
-        <button
-          ref={newTabButton}
-          disabled={locked}
-          onClick={() => workspace.newDocument()}
-        >
-          New tab
-        </button>
-        {active && (
-          <button
-            disabled={locked}
-            onClick={() => void workspace.requestCloseTab(active.id)}
-          >
-            Close tab {tabName(active)}
-          </button>
-        )}
-      </div>
       {snapshot.notice && <p role="status">{snapshot.notice}</p>}
       {snapshot.tabs.map((tab) => (
         <section
           key={tab.id}
           id={`${prefix}-panel-${tab.id}`}
+          className={styles.panel}
           role="tabpanel"
           aria-labelledby={`${prefix}-${tab.id}`}
           hidden={tab.id !== snapshot.activeId}

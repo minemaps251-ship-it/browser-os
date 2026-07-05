@@ -1,5 +1,7 @@
 .app {
   color: var(--text);
+  font-size: 13px;
+  min-width: 0;
 }
 .appearance {
   padding: 0;
@@ -28,13 +30,15 @@
   gap: 8px;
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-small);
-  background: var(--surface);
+  background: var(--surface-subtle);
   cursor: pointer;
 }
 .option:has(input:checked) {
-  border-color: var(--text);
+  border-color: var(--accent);
+  background: var(--selected-surface);
+  color: var(--selected-text);
 }
 .storage {
   margin-top: 24px;
@@ -42,15 +46,23 @@
   padding-top: 12px;
 }
 .app button {
-  min-height: 40px;
+  min-height: var(--control-height);
   padding: 8px 12px;
   color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--line);
+  background: var(--surface-subtle);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-small);
   font: inherit;
 }
 .appearance[aria-disabled='true'] .option {
   opacity: 0.65;
   cursor: wait;
+}
+
+.app button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.option:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }

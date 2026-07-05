@@ -114,10 +114,13 @@
   outline-offset: -2px;
 }
 .content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   overflow: auto;
   border-radius: 0 0 var(--radius) var(--radius);
   flex: 1;
-  padding: 25px 28px;
+  padding: 16px 18px;
 }
 @media (max-width: 600px) {
   .titlebar {
@@ -130,7 +133,7 @@
     height: 100% !important;
   }
   .content {
-    padding: 20px;
+    padding: 14px;
   }
   .close,
   .minimize,

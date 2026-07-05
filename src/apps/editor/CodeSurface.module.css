@@ -1,24 +1,41 @@
-.surface,
-.host {
+.surface {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   min-width: 0;
-}
-.label,
-.hint {
-  color: var(--muted);
-  font-size: 12px;
+  min-height: 0;
+  gap: 8px;
 }
 .label {
-  margin: 0 0 8px;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 .host {
-  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 180px;
+  min-width: 0;
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-small);
   overflow: hidden;
+}
+.host[hidden] {
+  display: none;
 }
 .host:focus-within {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 .surface textarea {
-  min-height: 240px;
+  min-height: 180px;
 }

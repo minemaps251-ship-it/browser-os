@@ -65,7 +65,7 @@ function RichCodeSurface({ tab, owner, model }: Props) {
           />
         </>
       )}
-      {ready && <p className={styles.label}>Code</p>}
+      {ready && <span className={styles.label}>Code</span>}
       <div ref={host} className={styles.host} hidden={!ready} />
       <p
         className={styles.hint}

@@ -1,6 +1,15 @@
 :root {
   --document-background: #ebe6df;
   --surface: #fffdfa;
+  --surface-subtle: #f5f2ed;
+  --surface-hover: #ece7df;
+  --control-border: #8a7f73;
+  --control-height: 34px;
+  --selected-surface: #f6e5db;
+  --selected-text: #713519;
+  --editor-selection: #d5e3f3;
+  --editor-match: #fff0a8;
+  --editor-match-text: #403100;
   --desktop-background: #ded5c9;
   --accent-contrast: #ffffff;
   --window-border: #c8c3bd;
@@ -51,6 +60,14 @@
 :root[data-theme='dark'] {
   --document-background: #171c25;
   --surface: #24272e;
+  --surface-subtle: #20232a;
+  --surface-hover: #333844;
+  --control-border: #808894;
+  --selected-surface: #4a3430;
+  --selected-text: #ffd9c4;
+  --editor-selection: #354960;
+  --editor-match: #594819;
+  --editor-match-text: #fff0b3;
   --desktop-background: #202a3a;
   --window-border: #50525a;
   --window-border-active: #77747d;
@@ -85,4 +102,10 @@
   --wallpaper-front: #704f5c;
   --wallpaper-edge: #34313f;
   color-scheme: dark;
+}
+
+@media (pointer: coarse), (max-width: 600px) {
+  :root {
+    --control-height: 44px;
+  }
 }

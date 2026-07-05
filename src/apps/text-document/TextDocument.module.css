@@ -1,41 +1,74 @@
 .app {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 10px;
+  min-width: 0;
+  min-height: 320px;
   color: var(--text);
+  font-size: 13px;
+}
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
 }
 .title {
-  margin: 0 0 8px;
-  font-size: 18px;
+  margin: 0;
+  font-size: 15px;
   overflow-wrap: anywhere;
 }
 .path,
 .hint {
   color: var(--muted);
   font-size: 12px;
-  overflow-wrap: anywhere;
+}
+.path {
+  flex: 1 1 120px;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .content {
-  max-height: 260px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 180px;
+  min-width: 0;
   overflow: auto;
-  padding: 14px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-small);
-  background: var(--surface);
+  background: var(--surface-subtle);
 }
-
 .app button {
-  min-height: 40px;
-  padding: 8px 12px;
+  min-height: var(--control-height);
+  padding: 6px 10px;
   color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--line);
+  background: var(--surface-subtle);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-small);
   font: inherit;
+}
+.app > button {
+  align-self: flex-start;
+}
+.app button:hover:not(:disabled) {
+  background: var(--surface-hover);
 }
 .actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin: 8px 0;
+}
+.status {
+  margin: 0 0 0 auto;
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 .content label {
   display: block;
@@ -45,15 +78,16 @@
 }
 .content textarea {
   display: block;
+  flex: 1;
   box-sizing: border-box;
   width: 100%;
-  min-height: 150px;
+  min-height: 140px;
   resize: vertical;
   color: var(--text);
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-small);
-  padding: 10px;
+  padding: 12px;
   font: inherit;
   line-height: 1.6;
 }
@@ -69,20 +103,31 @@
   display: block;
   box-sizing: border-box;
   width: 100%;
+  min-height: var(--control-height);
   padding: 8px;
   color: var(--text);
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-small);
   font: inherit;
 }
-
+.code {
+  min-height: 0;
+}
 .code .content {
-  max-height: none;
+  min-height: 220px;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+  background: transparent;
 }
 .code .content textarea {
-  min-height: 240px;
+  min-height: 180px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   tab-size: 2;
   line-height: 1.5;
+}
+
+.app :global(dialog) button {
+  min-height: 44px;
 }

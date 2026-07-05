@@ -1,26 +1,32 @@
 .app {
   color: var(--text);
+  min-width: 0;
   font-size: 13px;
 }
 .toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--surface-subtle);
 }
 .toolbar button,
 .breadcrumbs button {
   font: inherit;
   color: var(--text);
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-small);
+  min-height: var(--control-height);
   padding: 6px 10px;
 }
 .breadcrumbs {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 16px 0;
+  margin: 10px 0;
 }
 .breadcrumbs button {
   border: 0;
@@ -32,8 +38,8 @@
   font-weight: 650;
 }
 .heading {
-  font-size: 18px;
-  margin: 14px 0;
+  font-size: 15px;
+  margin: 10px 0;
 }
 .empty {
   color: var(--muted);
@@ -50,6 +56,8 @@
   gap: 12px;
   width: 100%;
   padding: 10px;
+  min-height: 44px;
+  font: inherit;
   border: 1px solid transparent;
   border-bottom-color: var(--line);
   background: transparent;
@@ -57,9 +65,13 @@
   text-align: left;
   border-radius: var(--radius-small);
 }
-.entry:hover,
+.entry:hover {
+  background: var(--surface-hover);
+}
 .selected {
-  background: var(--window-titlebar);
+  background: var(--selected-surface);
+  color: var(--selected-text);
+  border-color: var(--accent);
 }
 .icon {
   width: 24px;
@@ -86,14 +98,25 @@
 .selectFolder {
   flex-shrink: 0;
   padding: 8px;
-  min-height: 40px;
+  min-height: var(--control-height);
   color: var(--muted);
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-small);
   font: inherit;
 }
 .selectFolder[aria-pressed='true'] {
   color: var(--text);
   background: var(--window-titlebar);
+}
+
+.toolbar button:hover:not(:disabled),
+.breadcrumbs button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+@media (forced-colors: active) {
+  .selected {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }

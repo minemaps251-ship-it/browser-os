@@ -41,8 +41,12 @@ export function TextDocumentView({
       )}
       {snapshot.status === 'ready' && (
         <>
-          <h2 className={styles.title}>{snapshot.name}</h2>
-          <p className={styles.path}>{snapshot.path}</p>
+          <header className={styles.header}>
+            <h2 className={styles.title}>{snapshot.name}</h2>
+            <p className={styles.path} title={snapshot.path}>
+              {snapshot.path}
+            </p>
+          </header>
           <div className={styles.actions}>
             <button
               ref={saveButton}
@@ -59,7 +63,7 @@ export function TextDocumentView({
             <button disabled={snapshot.saving} onClick={notes.openSaveAs}>
               Save as
             </button>
-            <p role="status">
+            <p className={styles.status} role="status">
               {snapshot.saving
                 ? 'Saving…'
                 : snapshot.conflict
@@ -114,7 +118,7 @@ export function TextDocumentView({
                 {snapshot.buffer.length} characters · Plain text
               </p>
             )}
-            {!snapshot.buffer && (
+            {!snapshot.buffer && !editor && (
               <p className={styles.hint}>This file is empty.</p>
             )}
           </section>
