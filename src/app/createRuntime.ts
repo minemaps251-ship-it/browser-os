@@ -66,6 +66,7 @@ export function createBrowserRuntime(
     settings: workspace.settings,
     refresh: workspace.refresh,
     storageMode: workspace.mode,
+    prepareExport: workspace.prepareExport,
     getContent: (processId: ProcessId) => contents.get(processId),
     openFile: fileOpening.openFile,
     dispose: () => {

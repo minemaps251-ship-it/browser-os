@@ -4,9 +4,13 @@ import {
   type SettingsRepository,
   type ThemePreference,
 } from './types'
-export function createMemorySettingsRepository(): SettingsRepository {
+export interface MemorySettingsRepository extends SettingsRepository {
+  getCommittedTheme(): ThemePreference
+}
+export function createMemorySettingsRepository(): MemorySettingsRepository {
   let theme: ThemePreference = 'system'
   return {
+    getCommittedTheme: () => theme,
     readTheme: async () => ({ ok: true, value: theme }),
     writeTheme: async (value) => {
       if (!isThemePreference(value))

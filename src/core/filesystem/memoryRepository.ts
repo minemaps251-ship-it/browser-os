@@ -13,8 +13,12 @@ import type {
   FileContent,
   StoredFileContent,
   VfsChange,
+  VfsSnapshot,
 } from './types'
 
+export interface MemoryVfsRepository extends VfsRepository {
+  snapshot(): VfsSnapshot
+}
 function failure(code: VfsErrorCode, message: string, nodeId?: NodeId) {
   return { ok: false as const, error: { code, message, nodeId } }
 }
@@ -28,7 +32,7 @@ export function createMemoryVfsRepository(options: {
   onListenerError?: (error: unknown) => void
   initialContents?: readonly StoredFileContent[]
   initialNodes?: readonly FileSystemNode[]
-}): VfsResult<VfsRepository> {
+}): VfsResult<MemoryVfsRepository> {
   const input =
     options.initialNodes ??
     createInitialNodes(options.now(), options.createNodeId)
@@ -458,7 +462,16 @@ export function createMemoryVfsRepository(options: {
       ? { ok: true, value: node }
       : failure('NOT_FOUND', 'Node does not exist.', id)
   }
-  const repository: VfsRepository = {
+  const repository: MemoryVfsRepository = {
+    snapshot: () =>
+      Object.freeze({
+        nodes: Object.freeze([...state.nodes.values()]),
+        contents: Object.freeze(
+          [...state.contents].map(([id, content]) =>
+            Object.freeze({ id, content }),
+          ),
+        ),
+      }),
     subscribe: changes.subscribe,
     async remove(id, removeOptions) {
       if (!removeOptions || typeof removeOptions.recursive !== 'boolean')

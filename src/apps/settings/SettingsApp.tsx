@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { WorkspaceExport } from './WorkspaceExport'
 import { useRuntime } from '../../app/runtimeContext'
 import { useAppearanceSettings } from '../../ui/useAppearanceSettings'
 import type { ThemePreference } from '../../core/settings/types'
@@ -84,6 +85,7 @@ export default function SettingsApp() {
             : 'Your files and settings will be lost when you reload.'}
         </p>
       </section>
+      <WorkspaceExport />
     </div>
   )
 }

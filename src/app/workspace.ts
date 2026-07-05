@@ -1,3 +1,6 @@
+import { createWorkspaceExportService } from '../core/export/service'
+import { createIndexedDbExportReader } from '../core/storage/exportReader'
+import type { ExportArtifact, ExportResult } from '../core/export/types'
 import {
   createRefreshService,
   type RefreshService,
@@ -26,9 +29,14 @@ export interface Workspace {
   readonly settings: SettingsService
   readonly refresh: RefreshService
   readonly mode: 'persistent' | 'temporary'
+  prepareExport(): Promise<ExportResult<ExportArtifact>>
   dispose(): void
 }
 export function persistentWorkspace(connection: DatabaseConnection): Workspace {
+  const exporter = createWorkspaceExportService(
+    createIndexedDbExportReader(connection),
+    'persistent',
+  )
   const settings = createSettingsService(
     createIndexedDbSettingsRepository(connection),
   )
@@ -41,9 +49,11 @@ export function persistentWorkspace(connection: DatabaseConnection): Workspace {
     vfs: createVfsService(createIndexedDbVfsRepository(connection, options)),
     settings,
     mode: 'persistent',
+    prepareExport: exporter.prepare,
     dispose: () => {
       refresh.dispose()
       settings.dispose()
+      exporter.dispose()
       connection.close()
     },
   }
@@ -51,7 +61,18 @@ export function persistentWorkspace(connection: DatabaseConnection): Workspace {
 export function temporaryWorkspace(): Workspace {
   const repository = createMemoryVfsRepository(options)
   if (!repository.ok) throw new Error(repository.error.message)
-  const settings = createSettingsService(createMemorySettingsRepository())
+  const settingsRepository = createMemorySettingsRepository()
+  const settings = createSettingsService(settingsRepository)
+  const exporter = createWorkspaceExportService(
+    async () => ({
+      ok: true,
+      value: {
+        ...repository.value.snapshot(),
+        theme: settingsRepository.getCommittedTheme(),
+      },
+    }),
+    'temporary',
+  )
   const refresh = createRefreshService({
     settings,
     validate: async () => ({ ok: true }),
@@ -61,9 +82,11 @@ export function temporaryWorkspace(): Workspace {
     settings,
     vfs: createVfsService(repository.value),
     mode: 'temporary',
+    prepareExport: exporter.prepare,
     dispose: () => {
       refresh.dispose()
       settings.dispose()
+      exporter.dispose()
     },
   }
 }

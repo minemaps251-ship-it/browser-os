@@ -104,3 +104,9 @@ export type VfsChangeScope =
   | { readonly kind: 'node'; readonly id: NodeId }
   | { readonly kind: 'directory'; readonly id: NodeId }
 export type VfsChangeListener = (event: VfsChange) => void | Promise<void>
+
+/** Committed immutable tree/text snapshot for bounded read-only workspace operations. */
+export interface VfsSnapshot {
+  readonly nodes: readonly FileSystemNode[]
+  readonly contents: readonly StoredFileContent[]
+}
