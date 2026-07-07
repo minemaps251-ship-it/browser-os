@@ -3,32 +3,29 @@ import styles from './AboutApp.module.css'
 export default function AboutApp() {
   return (
     <div className={styles.content}>
-      <span className={styles.eyebrow}>WELCOME TO YOUR WORKSPACE</span>
+      <span className={styles.eyebrow}>GET STARTED</span>
       <h2>A desktop, built for the browser.</h2>
       <p>
-        BrowserOS explores how applications, windows, and shared services work
-        together in a browser.
+        Open Notes to write a document, then save it with a name. You can find
+        it in Files and read the same saved text in Terminal.
       </p>
       <div className={styles.facts}>
         <div>
-          <span>01</span>
-          <strong>Applications</strong>
-          <p>Launch through a single registry.</p>
+          <strong>Files</strong>
+          <p>Browse folders, create files and choose an editor.</p>
         </div>
         <div>
-          <span>02</span>
-          <strong>Windows</strong>
-          <p>Independent identity and focus.</p>
+          <strong>Code Editor</strong>
+          <p>Edit source files, search text and save your changes.</p>
         </div>
         <div>
-          <span>03</span>
-          <strong>Lifecycle</strong>
-          <p>Open, focus, and close cleanly.</p>
+          <strong>Terminal</strong>
+          <p>Use ls to list files and cat to read saved text.</p>
         </div>
       </div>
       <p className={styles.note}>
-        Your workspace and appearance are stored in this browser. Use Files to
-        browse folders in your workspace.
+        Settings lets you change the theme and download a JSON copy of your
+        saved files. Save your edits before preparing an export.
       </p>
       <StorageHelp />
     </div>

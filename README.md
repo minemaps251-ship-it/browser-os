@@ -9,6 +9,22 @@ The project focuses on the interactions between subsystems: saving with revision
 checks, keeping drafts during conflicts, closing windows safely, disposing lazy
 editor resources and reading a consistent snapshot for export.
 
+![BrowserOS workspace with Files, Code Editor and Terminal in the light theme](assets/screenshots/workspace-light.png)
+
+[Demo walkthrough](DEMO.md) · [Sample files](examples/demo) · [Capture details](assets/screenshots/README.md)
+
+<details>
+<summary>Dark theme and more screenshots</summary>
+
+![BrowserOS workspace in the dark theme](assets/screenshots/workspace-dark.png)
+
+[Light desktop](assets/screenshots/desktop-light.png) ·
+[Dark desktop](assets/screenshots/desktop-dark.png) ·
+[Getting started](assets/screenshots/about-light.png) ·
+[Saved-data export](assets/screenshots/export-dark.png)
+
+</details>
+
 ## Try it locally
 
 Node.js **24.18.0** is pinned in `.nvmrc`.
@@ -76,10 +92,9 @@ See [CONTRIBUTING](CONTRIBUTING.md) for CI, reports and setup details.
 
 The latest local validation contains 550 unit/integration tests, 102 Chromium
 scenarios, 180 native IndexedDB checks and 30 Firefox/WebKit smoke scenarios.
-GitHub Actions runs quality and browser jobs. In the [first hosted run](https://github.com/minemaps251-ship-it/browser-os/actions/runs/37473944902),
-quality, native persistence and cross-browser smoke passed; Chromium reported a
-failed editor-redo scenario and a flaky Files-close scenario. Both have local
-regression fixes; the workflow must be rerun with those fixes before release. Playwright WebKit coverage does not establish full Safari/iOS support.
+GitHub Actions runs quality and browser jobs. The [hosted run on the corrected commit](https://github.com/minemaps251-ship-it/browser-os/actions/runs/37498029505)
+passed quality, Chromium, native persistence and Firefox/WebKit smoke. New changes
+still need their own hosted run after pushing. Playwright WebKit coverage does not establish full Safari/iOS support.
 
 `npm run test:performance` profiles 1,000 files, ten windows, a roughly 256 KiB
 editor document and repeated resource release. It emits timings, browser trace,
@@ -102,7 +117,7 @@ speed thresholds and does not certify the absence of all memory leaks.
 
 ## Release work remaining
 
-Confirm the corrected Chromium scenarios in hosted CI, finish manual accessibility checks, capture genuine demo
-screenshots/video and publish on a stable origin. Licensing must also be finalized
-before a public release. Task Manager, command palette, extra utility apps and
-advanced window layouts remain optional future work.
+Finish manual accessibility checks, finalize licensing and publish on a stable origin.
+A walkthrough and genuine screenshots are available; a recorded demo video is optional
+future work. New commits must pass CI. Task Manager, command palette, extra utility
+apps and advanced window layouts remain optional.

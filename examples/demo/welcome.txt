@@ -1,0 +1,8 @@
+BrowserOS demo
+
+One workspace, several ways to work.
+Write in Notes. Edit source in Code Editor.
+Read the saved result in Terminal: cat welcome.txt
+Reload to check persistence, then export from Settings.
+
+Save your edits before exporting. This sample has no personal data.

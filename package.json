@@ -19,7 +19,8 @@
     "check": "npm run lint && npm run typecheck && npm run test:run && npm run build",
     "test:persistence": "playwright test --config playwright.persistence.config.ts",
     "test:cross-browser": "playwright test --config playwright.cross-browser.config.ts",
-    "test:performance": "playwright test --config playwright.performance.config.ts"
+    "test:performance": "playwright test --config playwright.performance.config.ts",
+    "demo:screenshots": "npm run build && node tools/demo/capture.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",
