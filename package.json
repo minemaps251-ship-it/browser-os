@@ -17,7 +17,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run lint && npm run typecheck && npm run test:run && npm run build",
-    "test:persistence": "playwright test --config playwright.persistence.config.ts"
+    "test:persistence": "playwright test --config playwright.persistence.config.ts",
+    "test:cross-browser": "playwright test --config playwright.cross-browser.config.ts"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",

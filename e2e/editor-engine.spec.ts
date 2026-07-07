@@ -129,6 +129,7 @@ async function reopenFile(page: Page, name: string) {
   })
   await closeFiles.focus()
   await closeFiles.press('Enter')
+  await expect(files).toHaveCount(0)
   return {
     files,
     editor: page.getByRole('region', { name: 'Code Editor window' }),

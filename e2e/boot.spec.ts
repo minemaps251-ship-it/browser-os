@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test('boots BrowserOS, launches About, and closes with keyboard focus restored', async ({
   page,
+  browserName,
 }) => {
   await page.goto('/')
   await expect(page).toHaveTitle('BrowserOS')
@@ -12,19 +13,24 @@ test('boots BrowserOS, launches About, and closes with keyboard focus restored',
   const window = page.getByRole('region', { name: 'About BrowserOS window' })
   await expect(window).toBeVisible()
   await expect(window).toBeFocused()
-  await page.keyboard.press('Tab')
+  // macOS WebKit uses Option-Tab to include buttons in native navigation.
+  const tab =
+    browserName === 'webkit' && process.platform === 'darwin'
+      ? 'Alt+Tab'
+      : 'Tab'
+  await page.keyboard.press(tab)
   await expect(
     page.getByRole('button', { name: 'Window actions for About BrowserOS' }),
   ).toBeFocused()
-  await page.keyboard.press('Tab')
+  await page.keyboard.press(tab)
   await expect(
     page.getByRole('button', { name: 'Minimize About BrowserOS' }),
   ).toBeFocused()
-  await page.keyboard.press('Tab')
+  await page.keyboard.press(tab)
   await expect(
     page.getByRole('button', { name: 'Maximize About BrowserOS' }),
   ).toBeFocused()
-  await page.keyboard.press('Tab')
+  await page.keyboard.press(tab)
   const close = page.getByRole('button', { name: 'Close About BrowserOS' })
   await expect(close).toBeFocused()
   await page.keyboard.press('Enter')
