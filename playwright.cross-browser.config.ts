@@ -3,6 +3,8 @@ import desktop from './playwright.config.js'
 
 // Reuse the same critical contracts rather than maintaining weaker browser copies.
 const scenarios = [
+  'short viewport keeps modal content scrollable and keyboard actions reachable',
+  'compact layout exposes named modal validation and returns focus after cancellation',
   'boots BrowserOS, launches About, and closes with keyboard focus restored',
   'drags within the workspace, cancels with Escape, and keeps controls clickable',
   'offers keyboard move, cancellation and native modal focus containment',
@@ -23,6 +25,7 @@ export default defineConfig({
   workers: 2,
   outputDir: 'test-results/cross-browser',
   testMatch: [
+    'accessibility.spec.ts',
     'boot.spec.ts',
     'window-move.spec.ts',
     'window-resize.spec.ts',

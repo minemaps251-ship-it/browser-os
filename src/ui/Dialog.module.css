@@ -1,8 +1,10 @@
 .dialog {
   position: fixed;
   top: auto;
-  bottom: 80px;
+  bottom: min(80px, 10dvh);
   max-width: min(420px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px - min(80px, 10dvh));
+  overflow: auto;
   padding: 20px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
