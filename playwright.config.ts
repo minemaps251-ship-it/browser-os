@@ -4,9 +4,11 @@ export default defineConfig({
   testDir: './e2e',
   testIgnore: ['**/persistence/**', '**/performance/**'],
   fullyParallel: true,
+  workers: process.env.CI ? 2 : undefined,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  reporter: 'list',
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  failOnFlakyTests: Boolean(process.env.CI),
   use: {
     baseURL: 'http://127.0.0.1:4173',
     trace: 'retain-on-failure',
