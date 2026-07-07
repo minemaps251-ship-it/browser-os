@@ -26,6 +26,7 @@
     "playwright.config.ts",
     "playwright.persistence.config.ts",
     "playwright.cross-browser.config.ts",
+    "playwright.performance.config.ts",
     "e2e"
   ],
   "exclude": ["e2e/persistence"]
