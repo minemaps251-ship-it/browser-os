@@ -1,5 +1,6 @@
 # BrowserOS
 
+[Live demo](https://browser-os-flax.vercel.app/)
 A browser-based desktop built with React and TypeScript. Files, Notes, Code Editor
 and Terminal share one virtual file system; windows and application lifetimes are
 managed by a small frontend runtime. Saved text and appearance settings persist
@@ -92,7 +93,7 @@ See [CONTRIBUTING](CONTRIBUTING.md) for CI, reports and setup details.
 
 The latest local validation contains 550 unit/integration tests, 102 Chromium
 scenarios, 180 native IndexedDB checks and 30 Firefox/WebKit smoke scenarios.
-GitHub Actions runs quality and browser jobs. The [hosted run including the demo materials](https://github.com/minemaps251-ship-it/browser-os/actions/runs/37499780921)
+GitHub Actions runs quality and browser jobs. The [hosted run for the deployed commit](https://github.com/minemaps251-ship-it/browser-os/actions/runs/37501336075)
 passed quality, Chromium, native persistence and Firefox/WebKit smoke. New changes
 still need their own hosted run after pushing. Playwright WebKit coverage does not establish full Safari/iOS support.
 
@@ -117,8 +118,8 @@ speed thresholds and does not certify the absence of all memory leaks.
 
 ## Release work remaining
 
-Finish manual accessibility checks and publish on a stable origin. Vercel configuration
-and a [deployment checklist](DEPLOYMENT.md) are ready; the public deployment is still pending.
+Finish manual accessibility checks. The [production demo](https://browser-os-flax.vercel.app/)
+is published on Vercel; see the [deployment checklist and verification record](DEPLOYMENT.md).
 A walkthrough and genuine screenshots are available; a recorded demo video is optional
 future work. New commits must pass CI. Task Manager, command palette, extra utility
 apps and advanced window layouts remain optional.

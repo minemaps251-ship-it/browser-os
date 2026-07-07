@@ -1,8 +1,7 @@
 # Deploy BrowserOS to Vercel
 
 BrowserOS builds to static assets. It needs no backend, environment secrets or
-server-side database. This repository is prepared for deployment; no public URL
-has been verified yet.
+server-side database. The [production deployment](https://browser-os-flax.vercel.app/) is live.
 
 ## Configure the project
 
@@ -70,3 +69,22 @@ announcements are separate actions after the checks pass.
 
 The code is distributed under the [MIT license](LICENSE). Preserve its copyright
 and permission notice when redistributing it.
+
+## Verified deployment — 6 October 2026
+
+- Production origin: https://browser-os-flax.vercel.app
+- Source: `main`, commit `36078490434ed50c5da1d66720321b90a3c05e12`.
+- Vercel deployment: `DLfrgQRR9A1wBK8phQwduUbBHauT`, status Ready.
+- [GitHub Actions](https://github.com/minemaps251-ship-it/browser-os/actions/runs/37501336075):
+  quality, Chromium, native persistence and cross-browser jobs passed. Diagnostic
+  performance was skipped because it runs separately on request.
+- Deployed smoke passed in Playwright Chromium, Firefox and WebKit using isolated
+  browser contexts and disposable sample data. Notes and Code Editor saved text;
+  reload, Files and Terminal confirmed it; the theme persisted and downloaded
+  JSON contained the expected text and theme. No page errors, failed network
+  requests or HTTP error responses were observed during those scenarios.
+- Existing demo capture workflow was adapted temporarily for the remote origin;
+  repository screenshot assets and the user's browser data were not overwritten.
+
+These are automated smoke results, not a manual Safari, VoiceOver, 200% zoom,
+IME or touch certification. Those manual checks remain open.
