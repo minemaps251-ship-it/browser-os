@@ -74,12 +74,12 @@ Run these sequentially: preview suites share the build directory and server port
 On Linux, use Playwright's `install --with-deps` to install system libraries too.
 See [CONTRIBUTING](CONTRIBUTING.md) for CI, reports and setup details.
 
-The latest local validation contains 550 unit/integration tests, 101 Chromium
+The latest local validation contains 550 unit/integration tests, 102 Chromium
 scenarios, 180 native IndexedDB checks and 30 Firefox/WebKit smoke scenarios.
 GitHub Actions runs quality and browser jobs. In the [first hosted run](https://github.com/minemaps251-ship-it/browser-os/actions/runs/37473944902),
 quality, native persistence and cross-browser smoke passed; Chromium reported a
-failed editor-focus scenario and a flaky Files-close scenario. These must be resolved
-before release. Playwright WebKit coverage does not establish full Safari/iOS support.
+failed editor-redo scenario and a flaky Files-close scenario. Both have local
+regression fixes; the workflow must be rerun with those fixes before release. Playwright WebKit coverage does not establish full Safari/iOS support.
 
 `npm run test:performance` profiles 1,000 files, ten windows, a roughly 256 KiB
 editor document and repeated resource release. It emits timings, browser trace,
@@ -102,7 +102,7 @@ speed thresholds and does not certify the absence of all memory leaks.
 
 ## Release work remaining
 
-Resolve the hosted Chromium failures, finish manual accessibility checks, capture genuine demo
+Confirm the corrected Chromium scenarios in hosted CI, finish manual accessibility checks, capture genuine demo
 screenshots/video and publish on a stable origin. Licensing must also be finalized
 before a public release. Task Manager, command palette, extra utility apps and
 advanced window layouts remain optional future work.

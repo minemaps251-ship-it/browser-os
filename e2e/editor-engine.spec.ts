@@ -123,6 +123,8 @@ async function reopenFile(page: Page, name: string) {
     .getByRole('button', { name: `Select file ${name}`, exact: true })
     .click()
   await files.getByRole('button', { name: 'Open in Code Editor' }).click()
+  const editor = page.getByRole('region', { name: 'Code Editor window' })
+  await expect(editor).toBeVisible()
   const closeFiles = files.getByRole('button', {
     name: 'Close Files',
     exact: true,
@@ -186,7 +188,7 @@ test('history and selection survive tab switches, save, theme and rename; Tab es
   await expect(
     editor.getByRole('tab', { name: 'renamed.js', exact: true }),
   ).toBeVisible()
-  await code.press('ControlOrMeta+Shift+z')
+  await code.press('ControlOrMeta+Shift+Z')
   await expect(code).toHaveText(baseline + ' // draft')
   await code.press('ControlOrMeta+f')
   const find = editor.getByRole('textbox', { name: 'Find', exact: true })
@@ -372,4 +374,27 @@ test('closing a window before delayed import completes never attaches an editor'
   await expect(page.locator('.cm-editor')).toHaveCount(0)
   await openEditor(page)
   await expect(page.locator('.cm-editor')).toHaveCount(1)
+})
+
+test('physical shifted redo preserves the draft with Linux keymap detection', async ({
+  page,
+}) => {
+  // Exercise the Linux binding even when this regression runs on macOS.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'platform', {
+      configurable: true,
+      get: () => 'Linux x86_64',
+    })
+  })
+  await page.goto('/')
+  const { code } = await openEditor(page)
+  await code.fill('baseline')
+  await code.press('Control+End')
+  await page.keyboard.type(' draft')
+  await expect(code).toHaveText('baseline draft')
+  await code.press('Control+z')
+  await expect(code).toHaveText('baseline')
+  // A physical Shift+Z produces uppercase event.key; lowercase synthetic z can undo.
+  await code.press('Control+Shift+Z')
+  await expect(code).toHaveText('baseline draft')
 })
