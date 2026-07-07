@@ -92,7 +92,7 @@ See [CONTRIBUTING](CONTRIBUTING.md) for CI, reports and setup details.
 
 The latest local validation contains 550 unit/integration tests, 102 Chromium
 scenarios, 180 native IndexedDB checks and 30 Firefox/WebKit smoke scenarios.
-GitHub Actions runs quality and browser jobs. The [hosted run on the corrected commit](https://github.com/minemaps251-ship-it/browser-os/actions/runs/37498029505)
+GitHub Actions runs quality and browser jobs. The [hosted run including the demo materials](https://github.com/minemaps251-ship-it/browser-os/actions/runs/37499780921)
 passed quality, Chromium, native persistence and Firefox/WebKit smoke. New changes
 still need their own hosted run after pushing. Playwright WebKit coverage does not establish full Safari/iOS support.
 
@@ -117,7 +117,12 @@ speed thresholds and does not certify the absence of all memory leaks.
 
 ## Release work remaining
 
-Finish manual accessibility checks, finalize licensing and publish on a stable origin.
+Finish manual accessibility checks and publish on a stable origin. Vercel configuration
+and a [deployment checklist](DEPLOYMENT.md) are ready; the public deployment is still pending.
 A walkthrough and genuine screenshots are available; a recorded demo video is optional
 future work. New commits must pass CI. Task Manager, command palette, extra utility
 apps and advanced window layouts remain optional.
+
+## License
+
+[MIT](LICENSE), copyright (c) 2026 minemaps251-ship-it.
