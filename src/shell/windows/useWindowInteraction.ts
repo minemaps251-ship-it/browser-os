@@ -1,4 +1,9 @@
 import {
+  snapTarget,
+  tileBounds,
+  type SnapTarget,
+} from '../../core/windows/tiling'
+import {
   useEffect,
   useRef,
   useState,
@@ -7,6 +12,7 @@ import {
 } from 'react'
 import {
   constrainPosition,
+  fitBounds,
   resizeBounds,
   type ResizeEdge,
   type Position,
@@ -18,6 +24,10 @@ import { useRuntime } from '../../app/runtimeContext'
 
 type Operation = { kind: 'move' } | { kind: 'resize'; edge: ResizeEdge }
 type Session = Operation & {
+  original: Bounds
+  detached: boolean
+  moved: boolean
+  snap: SnapTarget | null
   start: Bounds
   minimum: Size
   draft: Bounds
@@ -34,6 +44,7 @@ export function useWindowInteraction(
   const raf = useRef<number | null>(null)
   const [mode, setMode] = useState<'pointer' | 'keyboard' | null>(null)
   const [previewBounds, setPreviewBounds] = useState<Bounds | null>(null)
+  const [snapPreview, setSnapPreview] = useState<Bounds | null>(null)
   const [kind, setKind] = useState<'move' | 'resize'>('move')
 
   function area(): Size {
@@ -59,15 +70,20 @@ export function useWindowInteraction(
       cancelAnimationFrame(raf.current)
       raf.current = null
     }
-    if (commit) {
-      if (current.kind === 'resize')
-        runtime.resizeWindow(id, current.draft, area())
-      else runtime.moveWindow(id, current.draft, area())
+    if (commit && (current.moved || !current.pointer)) {
+      if (current.snap) runtime.snapWindow(id, current.snap, area())
+      else {
+        if (current.detached) runtime.restoreWindowBounds(id)
+        if (current.kind === 'resize' || current.detached)
+          runtime.resizeWindow(id, current.draft, area())
+        else runtime.moveWindow(id, current.draft, area())
+      }
     }
     const bounds = runtime.windows.getState().byId[id]?.bounds
     if (bounds) paint(bounds)
     if (current.pointer?.target.hasPointerCapture(current.pointer.id))
       current.pointer.target.releasePointerCapture(current.pointer.id)
+    setSnapPreview(null)
     setMode(null)
     setPreviewBounds(null)
   }
@@ -91,13 +107,14 @@ export function useWindowInteraction(
       }
       if (current.pointer?.target.hasPointerCapture(current.pointer.id))
         current.pointer.target.releasePointerCapture(current.pointer.id)
+      setSnapPreview(null)
       setMode(null)
       setPreviewBounds(null)
     }
-    const unsubscribe = runtime.windows.subscribe((state) => {
+    const unsubscribe = runtime.windows.subscribe((state, previous) => {
       if (
         state.byId[id]?.status === 'minimized' ||
-        state.byId[id]?.placement.kind === 'maximized'
+        state.byId[id]?.placement !== previous.byId[id]?.placement
       )
         restore()
     })
@@ -145,7 +162,8 @@ export function useWindowInteraction(
     const bounds = runtime.windows.getState().byId[id]?.bounds
     if (
       runtime.windows.getState().byId[id]?.status !== 'visible' ||
-      runtime.windows.getState().byId[id]?.placement.kind === 'maximized' ||
+      (kind === 'resize' &&
+        runtime.windows.getState().byId[id]?.placement.kind === 'maximized') ||
       !bounds ||
       session.current ||
       window.innerWidth <= 600
@@ -159,6 +177,10 @@ export function useWindowInteraction(
     session.current = {
       ...operation,
       minimum,
+      original: bounds,
+      detached: record.placement.kind !== 'normal',
+      moved: false,
+      snap: null,
       start: bounds,
       draft: bounds,
       area: area(),
@@ -172,6 +194,7 @@ export function useWindowInteraction(
   function update(delta: Position, incremental = false) {
     const current = session.current
     if (!current) return
+    current.moved = true
     const base = incremental ? current.draft : current.start
     current.draft =
       current.kind === 'resize'
@@ -224,13 +247,66 @@ export function useWindowInteraction(
   function pointerMove(event: PointerEvent<HTMLElement>) {
     const current = session.current
     if (!current?.pointer || current.pointer.id !== event.pointerId) return
-    update({
-      x: event.clientX - current.pointer.x,
-      y: event.clientY - current.pointer.y,
-    })
+    let dx = event.clientX - current.pointer.x
+    let dy = event.clientY - current.pointer.y
+    if (current.kind === 'move' && !current.moved && Math.hypot(dx, dy) < 4)
+      return
+    if (!current.moved && current.detached && current.kind === 'move') {
+      const record = runtime.windows.getState().byId[id]
+      const rect = frame.current?.parentElement?.getBoundingClientRect()
+      if (record && record.placement.kind !== 'normal' && rect) {
+        const saved = fitBounds(
+          record.placement.restoreBounds,
+          current.minimum,
+          current.area,
+        )
+        const ratio = Math.max(
+          0,
+          Math.min(
+            1,
+            (current.pointer.x - rect.left - current.original.x) /
+              current.original.width,
+          ),
+        )
+        current.start = {
+          ...saved,
+          ...constrainPosition(
+            saved,
+            {
+              x: event.clientX - rect.left - saved.width * ratio,
+              y:
+                event.clientY -
+                rect.top -
+                Math.min(24, current.pointer.y - rect.top - current.original.y),
+            },
+            current.area,
+          ),
+        }
+        current.pointer.x = event.clientX
+        current.pointer.y = event.clientY
+        dx = 0
+        dy = 0
+      }
+    }
+    update({ x: dx, y: dy })
+    if (current.kind === 'move') {
+      const rect = frame.current?.parentElement?.getBoundingClientRect()
+      if (rect) {
+        const target = snapTarget(
+          { x: event.clientX - rect.left, y: event.clientY - rect.top },
+          current.area,
+          current.minimum,
+        )
+        if (target !== current.snap) {
+          current.snap = target
+          setSnapPreview(target ? tileBounds(target, current.area) : null)
+        }
+      }
+    }
   }
   return {
     mode,
+    snapPreview,
     kind,
     previewBounds,
     startKeyboard: (kind: 'move' | 'resize') => start(kind),

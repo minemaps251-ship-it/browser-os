@@ -267,6 +267,31 @@
 .maximize:focus-visible {
   outline-offset: -2px;
 }
-.frame[data-maximized='true'] .titlebar {
-  cursor: default;
+
+.snapPreview {
+  position: absolute;
+  z-index: 10000;
+  pointer-events: none !important;
+  border: 3px solid var(--window-border-active);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    var(--shadow-window);
+  backdrop-filter: blur(8px);
+  transition:
+    left 140ms ease,
+    top 140ms ease,
+    width 140ms ease,
+    height 140ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .snapPreview {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .snapPreview {
+    border-color: Highlight;
+  }
 }

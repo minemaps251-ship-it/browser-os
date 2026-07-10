@@ -86,10 +86,8 @@ test('cancels move/resize previews on minimize and survives repeated restore', a
       await expect(frame).toHaveCSS('height', '440px')
     }
   }
-  await page
-    .getByRole('button', { name: 'Window actions for About BrowserOS' })
-    .click()
-  await page.getByRole('menuitem', { name: 'Resize window' }).click()
+  await frame.focus()
+  await page.keyboard.press('Control+Alt+r')
   await page.keyboard.press('ArrowRight')
   await frame
     .locator('button[aria-label="Minimize About BrowserOS"]')
@@ -122,7 +120,7 @@ test('mobile minimize/restore retains reachable controls', async ({ page }) => {
   ).toBeInViewport()
 })
 
-test('keeps four titlebar controls inside the minimum-width window', async ({
+test('keeps three titlebar controls inside the minimum-width window', async ({
   page,
 }) => {
   await page.goto('/')
@@ -140,7 +138,6 @@ test('keeps four titlebar controls inside the minimum-width window', async ({
   await expect(frame).toHaveCSS('width', '280px')
   const bounds = (await frame.boundingBox())!
   for (const label of [
-    'Window actions for About BrowserOS',
     'Minimize About BrowserOS',
     'Maximize About BrowserOS',
     'Close About BrowserOS',

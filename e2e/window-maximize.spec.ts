@@ -35,16 +35,13 @@ test('maximizes to workspace, keeps placement through minimize and restores orig
     await expect(frame).toHaveAttribute('id', id!)
   }
 })
-test('menu maximize tracks viewport and restores safely after desktop/mobile changes', async ({
+test('maximize tracks viewport and restores safely after desktop/mobile changes', async ({
   page,
 }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Open About BrowserOS' }).click()
   const frame = page.getByRole('region', { name: 'About BrowserOS window' })
-  await page
-    .getByRole('button', { name: 'Window actions for About BrowserOS' })
-    .click()
-  await page.getByRole('menuitem', { name: 'Maximize window' }).click()
+  await page.getByRole('button', { name: 'Maximize About BrowserOS' }).click()
   await page.setViewportSize({ width: 800, height: 600 })
   await expect
     .poll(async () => frame.boundingBox())
@@ -58,12 +55,8 @@ test('menu maximize tracks viewport and restores safely after desktop/mobile cha
     .poll(async () => frame.boundingBox())
     .toEqual(await page.locator('#desktop-workspace').boundingBox())
   await page
-    .getByRole('button', { name: 'Window actions for About BrowserOS' })
+    .getByRole('button', { name: 'Restore size of About BrowserOS' })
     .click()
-  await expect(page.getByRole('menuitem', { name: 'Move window' })).toHaveCount(
-    0,
-  )
-  await page.getByRole('menuitem', { name: 'Restore window size' }).click()
   await expect(frame).toHaveAttribute('data-maximized', 'false')
   await page.setViewportSize({ width: 375, height: 667 })
   await expect(frame).toHaveCSS('width', '355px')

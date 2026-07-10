@@ -1,3 +1,4 @@
+import { tileBounds, type SnapTarget, type Tile } from './tiling'
 import { constrainPosition, fitBounds, type Position } from './geometry'
 import { createStore } from 'zustand/vanilla'
 import type { AppId, ProcessId, WindowId } from '../shared/ids'
@@ -19,6 +20,11 @@ export interface WindowInstance {
   readonly placement:
     | { readonly kind: 'normal' }
     | { readonly kind: 'maximized'; readonly restoreBounds: Bounds }
+    | {
+        readonly kind: 'tiled'
+        readonly tile: Tile
+        readonly restoreBounds: Bounds
+      }
 }
 export interface WindowSnapshot {
   readonly byId: Readonly<Partial<Record<WindowId, WindowInstance>>>
@@ -166,7 +172,11 @@ export function moveWindow(
     ...state,
     byId: {
       ...state.byId,
-      [id]: { ...window, bounds: { ...window.bounds, ...next } },
+      [id]: {
+        ...window,
+        bounds: { ...window.bounds, ...next },
+        placement: { kind: 'normal' as const },
+      },
     },
   }
 }
@@ -187,7 +197,13 @@ export function resizeWindow(
     bounds.height === window.bounds.height
   )
     return state
-  return { ...state, byId: { ...state.byId, [id]: { ...window, bounds } } }
+  return {
+    ...state,
+    byId: {
+      ...state.byId,
+      [id]: { ...window, bounds, placement: { kind: 'normal' as const } },
+    },
+  }
 }
 function equalBounds(a: Bounds, b: Bounds) {
   return (
@@ -226,7 +242,10 @@ export function maximizeWindow(
           bounds,
           placement: {
             kind: 'maximized' as const,
-            restoreBounds: window.bounds,
+            restoreBounds:
+              window.placement.kind === 'normal'
+                ? window.bounds
+                : window.placement.restoreBounds,
           },
         },
       },
@@ -244,7 +263,7 @@ export function restoreWindowBounds(
   if (
     !window ||
     window.status === 'minimized' ||
-    window.placement.kind !== 'maximized'
+    window.placement.kind === 'normal'
   )
     return state
   const bounds = fitBounds(window.placement.restoreBounds, minimum, area)
@@ -273,9 +292,68 @@ export function fitWindowToArea(
   if (!window) return state
   if (window.placement.kind === 'normal')
     return resizeWindow(state, id, window.bounds, minimum, area)
-  const bounds = maximizedBounds(area)
+  const bounds =
+    window.placement.kind === 'tiled'
+      ? tileBounds(window.placement.tile, area)
+      : maximizedBounds(area)
+  if (
+    window.placement.kind === 'tiled' &&
+    (bounds.width < Math.min(minimum.width, area.width) ||
+      bounds.height < Math.min(minimum.height, area.height))
+  ) {
+    return {
+      ...state,
+      byId: {
+        ...state.byId,
+        [id]: {
+          ...window,
+          bounds: fitBounds(window.placement.restoreBounds, minimum, area),
+          placement: { kind: 'normal' as const },
+        },
+      },
+    }
+  }
   if (equalBounds(bounds, window.bounds)) return state
   return { ...state, byId: { ...state.byId, [id]: { ...window, bounds } } }
+}
+
+export function snapWindow(
+  state: WindowSnapshot,
+  id: WindowId,
+  target: SnapTarget,
+  minimum: Size,
+  area: Size,
+): WindowSnapshot {
+  const window = state.byId[id]
+  if (!window || window.status !== 'visible') return state
+  if (target === 'maximize') return maximizeWindow(state, id, area)
+  const bounds = tileBounds(target, area)
+  if (
+    bounds.width < Math.min(minimum.width, area.width) ||
+    bounds.height < Math.min(minimum.height, area.height)
+  )
+    return state
+  return focusWindow(
+    {
+      ...state,
+      byId: {
+        ...state.byId,
+        [id]: {
+          ...window,
+          bounds,
+          placement: {
+            kind: 'tiled',
+            tile: target,
+            restoreBounds:
+              window.placement.kind === 'normal'
+                ? window.bounds
+                : window.placement.restoreBounds,
+          },
+        },
+      },
+    },
+    id,
+  )
 }
 
 export function createWindowService() {
@@ -300,6 +378,11 @@ export function createWindowService() {
     resize: (id: WindowId, bounds: Bounds, minimum: Size, area: Size) =>
       store.setState(
         (state) => resizeWindow(state, id, bounds, minimum, area),
+        true,
+      ),
+    snap: (id: WindowId, target: SnapTarget, minimum: Size, area: Size) =>
+      store.setState(
+        (state) => snapWindow(state, id, target, minimum, area),
         true,
       ),
     maximize: (id: WindowId, area: Size) =>

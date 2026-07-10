@@ -119,10 +119,10 @@ describe('window move integration', () => {
       let writes = 0
       const unsubscribe = runtime.windows.subscribe(() => writes++)
       const actions = screen.getByRole('button', {
-        name: 'Window actions for About BrowserOS',
+        name: 'Maximize About BrowserOS',
       })
-      await user.click(actions)
-      await user.click(screen.getByRole('menuitem', { name: 'Move window' }))
+      await user.click(actions.closest('section')!)
+      await user.keyboard('{Control>}{Alt>}m{/Alt}{/Control}')
       const dialog = await screen.findByRole('dialog', {
         name: 'Move About BrowserOS',
       })
@@ -133,8 +133,8 @@ describe('window move integration', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Apply' }))
       expect(writes).toBe(1)
       await waitFor(() => expect(actions).toHaveFocus())
-      await user.click(actions)
-      await user.click(screen.getByRole('menuitem', { name: 'Move window' }))
+      await user.click(actions.closest('section')!)
+      await user.keyboard('{Control>}{Alt>}m{/Alt}{/Control}')
       const next = screen.getByRole('dialog')
       await user.click(within(next).getByRole('button', { name: 'Down' }))
       await user.click(within(next).getByRole('button', { name: 'Cancel' }))
@@ -169,10 +169,10 @@ describe('window move integration', () => {
       let writes = 0
       const unsubscribe = runtime.windows.subscribe(() => writes++)
       const actions = screen.getByRole('button', {
-        name: 'Window actions for About BrowserOS',
+        name: 'Maximize About BrowserOS',
       })
-      await user.click(actions)
-      await user.click(screen.getByRole('menuitem', { name: 'Resize window' }))
+      await user.click(actions.closest('section')!)
+      await user.keyboard('{Control>}{Alt>}r{/Alt}{/Control}')
       let dialog = await screen.findByRole('dialog', {
         name: 'Resize About BrowserOS',
       })
@@ -184,8 +184,8 @@ describe('window move integration', () => {
       expect(frame.style.width).toBe(`${start.width}px`)
       expect(writes).toBe(0)
       expect(actions).toHaveFocus()
-      await user.click(actions)
-      await user.click(screen.getByRole('menuitem', { name: 'Resize window' }))
+      await user.click(actions.closest('section')!)
+      await user.keyboard('{Control>}{Alt>}r{/Alt}{/Control}')
       dialog = screen.getByRole('dialog')
       await user.click(within(dialog).getByRole('button', { name: 'Taller' }))
       await user.click(within(dialog).getByRole('button', { name: 'Apply' }))

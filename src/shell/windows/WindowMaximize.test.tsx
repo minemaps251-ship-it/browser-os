@@ -51,11 +51,9 @@ it('preserves app state/process and cancels keyboard interaction on external max
     const process = runtime.listProcesses()[0]
     const initial = runtime.windows.getState().byId[id]!.bounds
     await user.click(
-      screen.getByRole('button', {
-        name: 'Window actions for About BrowserOS',
-      }),
+      screen.getByRole('region', { name: 'About BrowserOS window' }),
     )
-    await user.click(screen.getByRole('menuitem', { name: 'Move window' }))
+    await user.keyboard('{Control>}{Alt>}m{/Alt}{/Control}')
     await user.keyboard('{ArrowRight}')
     act(() => runtime.maximizeWindow(id))
     await waitFor(() =>

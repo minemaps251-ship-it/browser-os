@@ -94,32 +94,12 @@ test('constrains minimum/maximum, rolls back cancellation, and survives close du
   }
 })
 
-test('supports roving menu navigation and keyboard resize with focus return', async ({
+test('supports keyboard resize with cancellation and focus return', async ({
   page,
 }) => {
   const frame = await setup(page)
-  const actions = page.getByRole('button', {
-    name: 'Window actions for About BrowserOS',
-  })
-  await actions.focus()
-  await page.keyboard.press('ArrowDown')
-  await expect(
-    page.getByRole('menuitem', { name: 'Move window' }),
-  ).toBeFocused()
-  await page.keyboard.press('ArrowDown')
-  await expect(
-    page.getByRole('menuitem', { name: 'Resize window' }),
-  ).toBeFocused()
-  await page.keyboard.press('Home')
-  await expect(
-    page.getByRole('menuitem', { name: 'Move window' }),
-  ).toBeFocused()
-  await page.keyboard.press('End')
-  await expect(
-    page.getByRole('menuitem', { name: 'Maximize window' }),
-  ).toBeFocused()
-  await page.keyboard.press('ArrowUp')
-  await page.keyboard.press('Enter')
+  await frame.focus()
+  await page.keyboard.press('Control+Alt+r')
   const dialog = page.getByRole('dialog', { name: 'Resize About BrowserOS' })
   await expect(
     dialog.getByRole('button', { name: 'Apply', exact: true }),
@@ -130,21 +110,15 @@ test('supports roving menu navigation and keyboard resize with focus return', as
   await expect(frame).toHaveCSS('height', '480px')
   await page.keyboard.press('Escape')
   await expect(frame).toHaveCSS('width', '560px')
-  await expect(actions).toBeFocused()
-  await page.keyboard.press('ArrowUp')
   await expect(
-    page.getByRole('menuitem', { name: 'Maximize window' }),
+    page.getByRole('button', { name: 'Maximize About BrowserOS' }),
   ).toBeFocused()
-  await page.keyboard.press('ArrowUp')
-  await expect(
-    page.getByRole('menuitem', { name: 'Resize window' }),
-  ).toBeFocused()
-  await page.keyboard.press('Enter')
+  await frame.focus()
+  await page.keyboard.press('Control+Alt+r')
   await page.keyboard.press('ArrowRight')
   await page.keyboard.press('Enter')
   await expect(dialog).toHaveCount(0)
   await expect(frame).toHaveCSS('width', '570px')
-  await expect(actions).toBeFocused()
 })
 
 test('cancels capture loss/viewport changes and hides handles in mobile fallback', async ({
@@ -199,13 +173,6 @@ test('keeps titlebar controls reachable with coarse-pointer hit areas', async ({
       'height',
       '24px',
     )
-    await page
-      .getByRole('button', { name: 'Window actions for About BrowserOS' })
-      .tap({ position: { x: 2, y: 2 } })
-    await expect(
-      page.getByRole('menuitem', { name: 'Resize window' }),
-    ).toBeVisible()
-    await page.keyboard.press('Escape')
     await page
       .getByRole('button', { name: 'Close About BrowserOS' })
       .tap({ position: { x: 2, y: 2 } })

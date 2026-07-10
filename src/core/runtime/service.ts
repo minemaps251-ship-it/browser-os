@@ -1,3 +1,4 @@
+import type { SnapTarget } from '../windows/tiling'
 import type { NodeId } from '../filesystem/types'
 import type { ApplicationLaunchInput } from '../applications/launchInput'
 import type { Position } from '../windows/geometry'
@@ -281,6 +282,12 @@ export function createRuntime(deps: Dependencies) {
       const window = windows.read.getState().byId[id]
       const manifest = window && deps.registry.get(window.appId)
       if (manifest) windows.resize(id, bounds, manifest.window.minSize, area)
+    },
+    snapWindow: (id: WindowId, target: SnapTarget, area: Size) => {
+      if (disposed) return
+      const window = windows.read.getState().byId[id]
+      const manifest = window && deps.registry.get(window.appId)
+      if (manifest) windows.snap(id, target, manifest.window.minSize, area)
     },
     maximizeWindow: (id: WindowId) => {
       if (!disposed) windows.maximize(id, deps.getUsableArea())

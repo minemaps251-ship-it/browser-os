@@ -31,6 +31,7 @@ test('drags within the workspace, cancels with Escape, and keeps controls clicka
   await page.mouse.down()
   await page.mouse.move(-200, -200, { steps: 4 })
   await page.mouse.up()
+  await expect(frame).toHaveAttribute('data-placement', 'tiled')
   await expect(frame).toHaveCSS('left', '0px')
   await expect(frame).toHaveCSS('top', '0px')
   await page.getByRole('button', { name: 'Close About BrowserOS' }).click()
@@ -41,17 +42,9 @@ test('offers keyboard move, cancellation and native modal focus containment', as
   page,
 }) => {
   const frame = await setup(page)
-  const actions = page.getByRole('button', {
-    name: 'Window actions for About BrowserOS',
-  })
-  await actions.focus()
-  await page.keyboard.press('ArrowDown')
-  const item = page.getByRole('menuitem', { name: 'Move window' })
-  await expect(item).toBeFocused()
-  await page.keyboard.press('Escape')
-  await expect(actions).toBeFocused()
-  await actions.click()
-  await item.click()
+  const actions = page.getByRole('button', { name: 'Maximize About BrowserOS' })
+  await frame.focus()
+  await page.keyboard.press('Control+Alt+m')
   const dialog = page.getByRole('dialog', { name: 'Move About BrowserOS' })
   await expect(dialog).toBeVisible()
   await expect(
@@ -65,15 +58,15 @@ test('offers keyboard move, cancellation and native modal focus containment', as
   await expect(dialog).toHaveCount(0)
   await expect(frame).toHaveCSS('left', '24px')
   await expect(actions).toBeFocused()
-  await actions.click()
-  await item.click()
+  await frame.focus()
+  await page.keyboard.press('Control+Alt+m')
   await page.keyboard.press('ArrowRight')
   await page.keyboard.press('Enter')
   await expect(dialog).toHaveCount(0)
   await expect(frame).toHaveCSS('left', '34px')
   await expect(actions).toBeFocused()
-  await actions.click()
-  await item.click()
+  await frame.focus()
+  await page.keyboard.press('Control+Alt+m')
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).focus()
   await page.keyboard.press('Tab')
   await expect(
