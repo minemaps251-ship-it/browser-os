@@ -14,8 +14,11 @@ export function RefreshControl({ refresh }: { refresh: RefreshService }) {
           if (!snapshot.refreshing) void refresh.request()
         }}
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M20 7v5h-5M4 17v-5h5M6.2 7A7 7 0 0 1 20 12M17.8 17A7 7 0 0 1 4 12" />
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M3 12a9 9 0 0 1 15.36-6.36L21 8" />
+          <path d="M16 8h5V3" />
+          <path d="M21 12a9 9 0 0 1-15.36 6.36L3 16" />
+          <path d="M8 16H3v5" />
         </svg>
       </button>
       {snapshot.refreshing && (
