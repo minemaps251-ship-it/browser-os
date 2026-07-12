@@ -19,6 +19,9 @@ test('boots BrowserOS, launches About, and closes with keyboard focus restored',
       ? 'Alt+Tab'
       : 'Tab'
   await page.keyboard.press(tab)
+  const close = page.getByRole('button', { name: 'Close About BrowserOS' })
+  await expect(close).toBeFocused()
+  await page.keyboard.press(tab)
   await expect(
     page.getByRole('button', { name: 'Minimize About BrowserOS' }),
   ).toBeFocused()
@@ -26,9 +29,7 @@ test('boots BrowserOS, launches About, and closes with keyboard focus restored',
   await expect(
     page.getByRole('button', { name: 'Maximize About BrowserOS' }),
   ).toBeFocused()
-  await page.keyboard.press(tab)
-  const close = page.getByRole('button', { name: 'Close About BrowserOS' })
-  await expect(close).toBeFocused()
+  await close.focus()
   await page.keyboard.press('Enter')
   await expect(window).toHaveCount(0)
   await expect(launcher).toBeFocused()

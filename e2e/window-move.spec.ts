@@ -29,7 +29,8 @@ test('drags within the workspace, cancels with Escape, and keeps controls clicka
   await expect(frame).toHaveCSS('top', '84px')
   await page.mouse.move(moved.x + 150, moved.y + 24)
   await page.mouse.down()
-  await page.mouse.move(-200, -200, { steps: 4 })
+  const workspace = (await page.locator('#desktop-workspace').boundingBox())!
+  await page.mouse.move(workspace.x + 1, workspace.y + 1, { steps: 4 })
   await page.mouse.up()
   await expect(frame).toHaveAttribute('data-placement', 'tiled')
   await expect(frame).toHaveCSS('left', '0px')

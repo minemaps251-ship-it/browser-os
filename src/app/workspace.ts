@@ -1,3 +1,8 @@
+import {
+  createPreferenceService,
+  createMemoryPreferenceRepository,
+} from '../core/preferences/service'
+import { createIndexedDbPreferenceRepository } from '../core/storage/preferenceRepository'
 import { createWorkspaceExportService } from '../core/export/service'
 import { createIndexedDbExportReader } from '../core/storage/exportReader'
 import type { ExportArtifact, ExportResult } from '../core/export/types'
@@ -25,6 +30,7 @@ const options = {
   createOperationId: () => crypto.randomUUID(),
 }
 export interface Workspace {
+  readonly preferences: ReturnType<typeof createPreferenceService>
   readonly vfs: ReturnType<typeof createVfsService>
   readonly settings: SettingsService
   readonly refresh: RefreshService
@@ -33,6 +39,9 @@ export interface Workspace {
   dispose(): void
 }
 export function persistentWorkspace(connection: DatabaseConnection): Workspace {
+  const preferences = createPreferenceService(
+    createIndexedDbPreferenceRepository(connection),
+  )
   const exporter = createWorkspaceExportService(
     createIndexedDbExportReader(connection),
     'persistent',
@@ -45,12 +54,14 @@ export function persistentWorkspace(connection: DatabaseConnection): Workspace {
     validate: () => validateStoredMetadata(connection),
   })
   return {
+    preferences,
     refresh,
     vfs: createVfsService(createIndexedDbVfsRepository(connection, options)),
     settings,
     mode: 'persistent',
     prepareExport: exporter.prepare,
     dispose: () => {
+      preferences.dispose()
       refresh.dispose()
       settings.dispose()
       exporter.dispose()
@@ -59,6 +70,9 @@ export function persistentWorkspace(connection: DatabaseConnection): Workspace {
   }
 }
 export function temporaryWorkspace(): Workspace {
+  const preferences = createPreferenceService(
+    createMemoryPreferenceRepository(),
+  )
   const repository = createMemoryVfsRepository(options)
   if (!repository.ok) throw new Error(repository.error.message)
   const settingsRepository = createMemorySettingsRepository()
@@ -78,12 +92,14 @@ export function temporaryWorkspace(): Workspace {
     validate: async () => ({ ok: true }),
   })
   return {
+    preferences,
     refresh,
     settings,
     vfs: createVfsService(repository.value),
     mode: 'temporary',
     prepareExport: exporter.prepare,
     dispose: () => {
+      preferences.dispose()
       refresh.dispose()
       settings.dispose()
       exporter.dispose()

@@ -3,12 +3,19 @@ import desktop from './playwright.config.js'
 
 // Reuse the same critical contracts rather than maintaining weaker browser copies.
 const scenarios = [
+  'shared shortcuts target the active process and ignore composition and modal dialogs',
+  'active app menus save through the document session and preserve close guards',
+  'menus support keyboard navigation, dismissal and current app contributions',
+  'Dock supports pinning, keyboard reorder, drag reorder and reload persistence',
+  'desktop context and settings persist wallpaper, sorting and motion preferences',
+  'failed desktop preference writes retain the committed layout and allow retry',
+  'invalid saved desktop preferences are preserved until an explicit reset',
   'short viewport keeps modal content scrollable and keyboard actions reachable',
   'compact layout exposes named modal validation and returns focus after cancellation',
   'boots BrowserOS, launches About, and closes with keyboard focus restored',
   'drags within the workspace, cancels with Escape, and keeps controls clickable',
   'offers keyboard move, cancellation and native modal focus containment',
-  'supports roving menu navigation and keyboard resize with focus return',
+  'supports keyboard resize with cancellation and focus return',
   'maximizes to workspace, keeps placement through minimize and restores original bounds',
   'Notes saves shared text, protects dirty close and retains content after reload',
   'Notes keeps local edits when another tab saves and resolves conflict explicitly',
@@ -25,6 +32,7 @@ export default defineConfig({
   workers: 2,
   outputDir: 'test-results/cross-browser',
   testMatch: [
+    'shell-menus.spec.ts',
     'accessibility.spec.ts',
     'boot.spec.ts',
     'window-move.spec.ts',

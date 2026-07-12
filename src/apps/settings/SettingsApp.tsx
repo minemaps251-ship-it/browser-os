@@ -1,3 +1,4 @@
+import { DesktopSettings } from './DesktopSettings'
 import { useId } from 'react'
 import { WorkspaceExport } from './WorkspaceExport'
 import { useRuntime } from '../../app/runtimeContext'
@@ -85,6 +86,7 @@ export default function SettingsApp() {
             : 'Your files and settings will be lost when you reload.'}
         </p>
       </section>
+      <DesktopSettings />
       <WorkspaceExport />
     </div>
   )

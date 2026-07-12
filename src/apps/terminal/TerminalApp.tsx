@@ -1,3 +1,4 @@
+import { useAppCommands } from '../../app/useAppCommands'
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { useRuntime } from '../../app/runtimeContext'
 import { useCommandHistory } from './useCommandHistory'
@@ -9,6 +10,17 @@ export default function TerminalApp() {
     createTerminalSession(runtime.vfs, runtime.refresh),
   )
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot)
+  useAppCommands([
+    {
+      id: 'terminal.clear',
+      label: 'Clear terminal',
+      group: 'View',
+      enabled: snapshot.status === 'ready',
+      run: () => {
+        void session.run('clear')
+      },
+    },
+  ])
   const history = useCommandHistory()
   const { draft, setDraft } = history
   const inputId = useId()

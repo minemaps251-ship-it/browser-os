@@ -50,7 +50,7 @@ export function useDocumentControls(
       if (
         (event.ctrlKey || event.metaKey) &&
         !event.altKey &&
-        event.key.toLowerCase() === 's'
+        (event.code === 'KeyS' || event.key.toLowerCase() === 's')
       ) {
         event.preventDefault()
         if (
@@ -58,7 +58,8 @@ export function useDocumentControls(
           !event.nativeEvent.isComposing &&
           event.nativeEvent.keyCode !== 229
         )
-          save()
+          if (event.shiftKey) setSaveAsOpen(true)
+          else save()
       }
     },
     retry: session.retry,

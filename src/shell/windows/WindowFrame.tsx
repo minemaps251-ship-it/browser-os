@@ -1,3 +1,4 @@
+import { CommandOwnerContext } from '../../app/useAppCommands'
 import { Dialog } from '../../ui/Dialog'
 import { useWindowInteraction } from './useWindowInteraction'
 import { resizeEdges } from '../../core/windows/geometry'
@@ -112,12 +113,21 @@ export function WindowFrame({ id }: { id: WindowId }) {
           onPointerCancel={interaction.pointerCancel}
           onLostPointerCapture={interaction.pointerCancel}
         >
-          <span className={styles.brand} aria-hidden="true">
-            B
-          </span>
-          <h2>{window.title}</h2>
+          <button
+            className={styles.close}
+            title={`Close ${window.title}`}
+            aria-label={`Close ${window.title}`}
+            onClick={() => runtime.requestCloseWindow(id)}
+          >
+            <span className={styles.controlDot} aria-hidden="true">
+              <svg viewBox="0 0 12 12">
+                <path d="m3.5 3.5 5 5m0-5-5 5" />
+              </svg>
+            </span>
+          </button>
           <button
             className={styles.minimize}
+            title={`Minimize ${window.title}`}
             aria-label={`Minimize ${window.title}`}
             onClick={() => runtime.minimizeWindow(id)}
           >
@@ -130,6 +140,7 @@ export function WindowFrame({ id }: { id: WindowId }) {
           <button
             ref={actions}
             className={styles.maximize}
+            title={placed ? 'Restore window size' : 'Fill workspace'}
             aria-label={`${placed ? 'Restore size of' : 'Maximize'} ${window.title}`}
             onClick={toggleMaximize}
           >
@@ -143,17 +154,7 @@ export function WindowFrame({ id }: { id: WindowId }) {
               </svg>
             </span>
           </button>
-          <button
-            className={styles.close}
-            aria-label={`Close ${window.title}`}
-            onClick={() => runtime.requestCloseWindow(id)}
-          >
-            <span className={styles.controlDot} aria-hidden="true">
-              <svg viewBox="0 0 12 12">
-                <path d="m3.5 3.5 5 5m0-5-5 5" />
-              </svg>
-            </span>
-          </button>
+          <h2>{window.title}</h2>
         </header>
         {interaction.mode === 'keyboard' && window.status === 'visible' && (
           <Dialog
@@ -236,13 +237,20 @@ export function WindowFrame({ id }: { id: WindowId }) {
             />
           ))}
         <div data-window-content className={styles.content}>
-          <AppBoundary onCrash={() => runtime.reportCrash(id)}>
-            {content ? (
-              content
-            ) : (
-              <p role="alert">Application renderer is unavailable.</p>
-            )}
-          </AppBoundary>
+          <CommandOwnerContext value={window.processId}>
+            <AppBoundary
+              onCrash={() => {
+                runtime.commands.remove(window.processId)
+                runtime.reportCrash(id)
+              }}
+            >
+              {content ? (
+                content
+              ) : (
+                <p role="alert">Application renderer is unavailable.</p>
+              )}
+            </AppBoundary>
+          </CommandOwnerContext>
         </div>
       </section>
     </>

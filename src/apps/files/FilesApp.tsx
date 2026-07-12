@@ -1,3 +1,4 @@
+import { useAppCommands } from '../../app/useAppCommands'
 import type { AppId } from '../../core/shared/ids'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useRuntime } from '../../app/runtimeContext'
@@ -226,6 +227,28 @@ export default function FilesApp() {
   }
   const parent = snapshot.breadcrumbs.at(-2)
   const selectedEntry = snapshot.entries.find((entry) => entry.id === selected)
+  const commandsAvailable =
+    snapshot.status === 'ready' &&
+    !renaming &&
+    !creation &&
+    !deleting &&
+    !transferring
+  useAppCommands([
+    {
+      id: 'files.new-folder',
+      label: 'New folder',
+      group: 'File',
+      enabled: commandsAvailable,
+      run: () => openCreation('directory'),
+    },
+    {
+      id: 'files.new-file',
+      label: 'New file',
+      group: 'File',
+      enabled: commandsAvailable,
+      run: () => openCreation('file'),
+    },
+  ])
   return (
     <div className={styles.app}>
       <div className={styles.toolbar}>

@@ -1,3 +1,4 @@
+import { useAppCommands } from '../../app/useAppCommands'
 import { useId, useRef, type ReactNode } from 'react'
 import type { ApplicationProps } from '../../app/builtInApps'
 import { SaveAsDialog } from './SaveAsDialog'
@@ -26,6 +27,56 @@ export function TextDocumentView({
   editor?: ReactNode
 }) {
   const { snapshot, retry } = notes
+  const textarea = useRef<HTMLTextAreaElement>(null)
+  const ready = snapshot.status === 'ready'
+  useAppCommands([
+    ...(!editor
+      ? [
+          {
+            id: 'document.select-all',
+            label: 'Select all',
+            group: 'Edit' as const,
+            enabled: ready && !notes.saveAsOpen && !snapshot.closing,
+            run: () => {
+              textarea.current?.focus()
+              textarea.current?.select()
+            },
+          },
+        ]
+      : []),
+    {
+      id: 'document.new',
+      label: showNew ? 'New document' : 'New tab',
+      group: 'File',
+      enabled: !notes.saveAsOpen && !(ready && snapshot.closing),
+      shortcut: 'new',
+      run: notes.newDocument,
+    },
+    {
+      id: 'document.save',
+      label: 'Save',
+      group: 'File',
+      enabled:
+        ready &&
+        !snapshot.saving &&
+        !snapshot.conflict &&
+        snapshot.availability === 'available' &&
+        !notes.saveAsOpen &&
+        !snapshot.closing &&
+        (!snapshot.fileId || snapshot.dirty),
+      shortcut: 'save',
+      run: notes.save,
+    },
+    {
+      id: 'document.save-as',
+      label: 'Save as…',
+      group: 'File',
+      enabled:
+        ready && !snapshot.saving && !notes.saveAsOpen && !snapshot.closing,
+      shortcut: 'save-as',
+      run: notes.openSaveAs,
+    },
+  ])
   const saveButton = useRef<HTMLButtonElement>(null)
   const inputId = useId(),
     closeDescriptionId = useId()
@@ -100,6 +151,7 @@ export function TextDocumentView({
               <>
                 <label htmlFor={inputId}>{code ? 'Code' : 'Text'}</label>
                 <textarea
+                  ref={textarea}
                   id={inputId}
                   value={snapshot.buffer}
                   maxLength={1048576}

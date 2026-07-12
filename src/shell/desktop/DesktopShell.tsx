@@ -1,3 +1,7 @@
+import { MenuBar } from './MenuBar'
+import { useDesktopPreferences } from './useDesktopPreferences'
+import { useShellShortcuts } from '../commands/useShellShortcuts'
+import { PopupMenu, type MenuAnchor } from '../menu/PopupMenu'
 import styles from './DesktopShell.module.css'
 import { useState } from 'react'
 import { useRuntime } from '../../app/runtimeContext'
@@ -12,6 +16,15 @@ import { DesktopWallpaper } from './DesktopWallpaper'
 
 export function DesktopShell() {
   const runtime = useRuntime()
+  useShellShortcuts()
+  const preferences = useDesktopPreferences()
+  const [context, setContext] = useState<MenuAnchor | null>(null)
+  const [dismissContext, setDismissContext] = useState<() => void>(
+    () => () => {},
+  )
+  const apps = [...runtime.registry.list()]
+  if (preferences.value.shortcutOrder === 'name')
+    apps.sort((a, b) => a.name.localeCompare(b.name))
   const [pending, setPending] = useState<AppId | null>(null)
   const [error, setError] = useState<string | null>(null)
   async function launch(id: AppId) {
@@ -23,19 +36,14 @@ export function DesktopShell() {
     else focusWindowElement(result.windowId)
   }
   return (
-    <main className={styles.desktop}>
+    <main
+      className={styles.desktop}
+      data-wallpaper={preferences.value.wallpaper}
+      data-reduce-motion={preferences.value.reduceMotion}
+    >
       <DesktopWallpaper />
       <header className={styles.header}>
-        <div className={styles.identity}>
-          <svg className={styles.brand} viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="3" y="3" width="7" height="7" rx="2" />
-            <rect x="14" y="3" width="7" height="7" rx="2" />
-            <rect x="3" y="14" width="7" height="7" rx="2" />
-            <path d="M14 14h7v7h-7z" />
-          </svg>
-          <h1>BrowserOS</h1>
-          <span className={styles.location}>Desktop</span>
-        </div>
+        <MenuBar />
         <div className={styles.systemControls}>
           <RefreshControl refresh={runtime.refresh} />
           <ThemeControl settings={runtime.settings} />
@@ -57,9 +65,67 @@ export function DesktopShell() {
           {error}
         </p>
       )}
-      <div id="desktop-workspace" className={styles.workspace}>
+      <div
+        id="desktop-workspace"
+        className={styles.workspace}
+        onContextMenu={(event) => {
+          if (
+            event.target instanceof Element &&
+            event.target.closest(
+              'section[aria-label], button, input, textarea, dialog',
+            )
+          )
+            return
+          event.preventDefault()
+          const previous = document.activeElement
+          setDismissContext(() => () => {
+            setContext(null)
+            if (previous instanceof HTMLElement && previous.isConnected)
+              previous.focus()
+          })
+          setContext({ x: event.clientX, y: event.clientY })
+        }}
+      >
+        {context && (
+          <PopupMenu
+            label="Desktop actions"
+            anchor={context}
+            onClose={dismissContext}
+            items={[
+              {
+                id: 'wallpaper',
+                label:
+                  preferences.value.wallpaper === 'warm'
+                    ? 'Use cool wallpaper'
+                    : 'Use warm wallpaper',
+                disabled: preferences.busy,
+                run: () => {
+                  void runtime.preferences.update({
+                    wallpaper:
+                      preferences.value.wallpaper === 'warm' ? 'cool' : 'warm',
+                  })
+                },
+              },
+              {
+                id: 'sort',
+                label: 'Arrange shortcuts by name',
+                disabled: preferences.busy,
+                run: () => {
+                  void runtime.preferences.update({ shortcutOrder: 'name' })
+                },
+              },
+              {
+                id: 'settings',
+                label: 'Desktop settings…',
+                run: () => {
+                  void launch('settings' as AppId)
+                },
+              },
+            ]}
+          />
+        )}
         <nav className={styles.shortcuts} aria-label="Application launcher">
-          {runtime.registry.list().map((app, index) => (
+          {apps.map((app, index) => (
             <button
               className={styles.shortcut}
               aria-label={`Open ${app.name}`}
@@ -79,6 +145,16 @@ export function DesktopShell() {
         </nav>
         <WindowLayer />
       </div>
+      {preferences.loaded && preferences.busy && (
+        <p className={styles.preferenceStatus} role="status">
+          Saving desktop preferences…
+        </p>
+      )}
+      {preferences.error && (
+        <p className={styles.preferenceStatus} role="alert">
+          {preferences.error}
+        </p>
+      )}
       <Taskbar />
     </main>
   )

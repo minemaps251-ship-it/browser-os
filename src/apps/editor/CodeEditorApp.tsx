@@ -1,3 +1,4 @@
+import { useAppCommands } from '../../app/useAppCommands'
 import { useEffect, useId, useRef } from 'react'
 import type { ApplicationProps } from '../../app/builtInApps'
 import { CodeSurface } from './CodeSurface'
@@ -32,6 +33,21 @@ function DocumentPanel({
       editor={<CodeSurface tab={tab} owner={owner} model={controls} />}
     />
   )
+}
+function EmptyEditorCommands({ workspace }: { workspace: EditorWorkspace }) {
+  useAppCommands([
+    {
+      id: 'document.new',
+      label: 'New tab',
+      group: 'File',
+      enabled: true,
+      shortcut: 'new',
+      run: () => {
+        workspace.newDocument()
+      },
+    },
+  ])
+  return null
 }
 function tabName(tab: EditorTab) {
   return tab.document.status === 'ready'
@@ -160,6 +176,7 @@ export default function CodeEditorApp(props: ApplicationProps) {
           )}
         </section>
       ))}
+      {!active && <EmptyEditorCommands workspace={workspace} />}
       {!active && (
         <p>No documents open. Create a new tab or open a file from Files.</p>
       )}

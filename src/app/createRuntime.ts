@@ -1,3 +1,4 @@
+import { createCommandService } from '../core/commands/service'
 import { createElement, type ReactElement } from 'react'
 import { createRegistry } from '../core/applications/registry'
 import type { ProcessId, WindowId } from '../core/shared/ids'
@@ -50,6 +51,7 @@ export function createBrowserRuntime(
           }),
         )
         scope.registerCleanup(() => {
+          commands.remove(context.processId)
           contents.delete(context.processId)
         })
       }
@@ -58,10 +60,13 @@ export function createBrowserRuntime(
       console.error('Application cleanup failed', error)
     },
   })
+  const commands = createCommandService()
   const fileOpening = createFileOpeningService(runtime, workspace.vfs)
   let disposed = false
   return {
     ...runtime,
+    commands,
+    preferences: workspace.preferences,
     vfs: workspace.vfs,
     settings: workspace.settings,
     refresh: workspace.refresh,
@@ -73,6 +78,7 @@ export function createBrowserRuntime(
       if (disposed) return
       disposed = true
       fileOpening.dispose()
+      commands.dispose()
       runtime.dispose()
       contents.clear()
       workspace.dispose()

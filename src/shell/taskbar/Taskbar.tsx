@@ -1,5 +1,14 @@
+import { pinnedApps } from '../../core/preferences/dock'
+import { PopupMenu } from '../menu/PopupMenu'
+import { useDockMenu } from './useDockMenu'
 import styles from './Taskbar.module.css'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react'
 import { useStore } from 'zustand'
 import { useRuntime } from '../../app/runtimeContext'
 import type { WindowId } from '../../core/shared/ids'
@@ -8,16 +17,21 @@ import { focusWindowElement } from '../windows/focus'
 
 export function Taskbar() {
   const runtime = useRuntime()
+  const preferences = useSyncExternalStore(
+    runtime.preferences.subscribe,
+    runtime.preferences.getSnapshot,
+  )
   const windows = useStore(runtime.windows, (state) => state.ids)
   const focusedId = useStore(runtime.windows, (state) => state.focusedId)
   const previousFocus = useRef<WindowId | null>(focusedId)
   const [tooltip, setTooltip] = useState<string | null>(null)
   // Pinned apps keep a single Dock icon; unpinned apps show each running window.
-  const pinned = runtime.registry
-    .list()
-    .filter(
-      (app) => app.instancePolicy === 'singleton' || app.dock === 'pinned',
-    )
+  const pinnedIds = pinnedApps(runtime.registry.list(), preferences.value)
+  const pinned = pinnedIds.map((id) => runtime.registry.get(id)!)
+  const hasUnpinned = windows.some((id) => {
+    const record = runtime.windows.getState().byId[id]
+    return record && !pinnedIds.includes(record.appId)
+  })
   useEffect(() => {
     if (previousFocus.current && !focusedId)
       document.getElementById('app-launcher')?.focus()
@@ -34,15 +48,12 @@ export function Taskbar() {
         {pinned.map((app) => (
           <PinnedItem key={app.id} app={app} onLabel={setTooltip} />
         ))}
+        {hasUnpinned && pinned.length > 0 && (
+          <span className={styles.separator} aria-hidden="true" />
+        )}
         {windows.map((id) => {
           const window = runtime.windows.getState().byId[id]
-          if (
-            !window ||
-            runtime.registry.get(window.appId)?.instancePolicy ===
-              'singleton' ||
-            runtime.registry.get(window.appId)?.dock === 'pinned'
-          )
-            return null
+          if (!window || pinnedIds.includes(window.appId)) return null
           return <WindowItem key={id} id={id} onLabel={setTooltip} />
         })}
       </nav>
@@ -113,6 +124,8 @@ function PinnedItem({
   return (
     <>
       <DockButton
+        appId={app.id}
+        windowId={id}
         name={app.name}
         icon={app.icon}
         running={id !== undefined}
@@ -150,9 +163,12 @@ function WindowItem({ id, onLabel }: { id: WindowId; onLabel: LabelHandler }) {
     (state) => state.byId[id]?.status === 'minimized',
   )
   const focused = useStore(runtime.windows, (state) => state.focusedId === id)
-  const icon = appId && runtime.registry.get(appId)?.icon
+  if (!appId) return null
+  const icon = runtime.registry.get(appId)?.icon
   return (
     <DockButton
+      appId={appId}
+      windowId={id}
       name={title}
       icon={icon ?? '•'}
       running
@@ -168,6 +184,8 @@ function WindowItem({ id, onLabel }: { id: WindowId; onLabel: LabelHandler }) {
 }
 
 function DockButton({
+  appId,
+  windowId,
   name,
   icon,
   running,
@@ -177,6 +195,8 @@ function DockButton({
   onClick,
   onLabel,
 }: {
+  appId: import('../../core/shared/ids').AppId
+  windowId?: WindowId
   name: string
   icon: ReactNode
   running: boolean
@@ -186,28 +206,41 @@ function DockButton({
   onClick: () => void
   onLabel: LabelHandler
 }) {
+  const menu = useDockMenu(appId, windowId, onClick)
   return (
-    <button
-      aria-label={minimized ? `${name} (minimized)` : name}
-      aria-pressed={focused}
-      aria-busy={pending}
-      disabled={pending}
-      data-minimized={minimized}
-      data-running={running}
-      onClick={onClick}
-      onMouseEnter={() => onLabel(name)}
-      onMouseLeave={(event) => {
-        if (event.currentTarget !== document.activeElement) onLabel(null)
-      }}
-      onFocus={() => onLabel(name)}
-      onBlur={(event) => {
-        if (!event.currentTarget.matches(':hover')) onLabel(null)
-      }}
-    >
-      <span className={styles.icon} aria-hidden="true">
-        {icon}
-      </span>
-      {running && <span className={styles.indicator} aria-hidden="true" />}
-    </button>
+    <>
+      <button
+        {...menu.events}
+        data-pinned={menu.pinned}
+        aria-label={minimized ? `${name} (minimized)` : name}
+        aria-pressed={focused}
+        aria-busy={pending}
+        disabled={pending}
+        data-minimized={minimized}
+        data-running={running}
+        onClick={onClick}
+        onMouseEnter={() => onLabel(name)}
+        onMouseLeave={(event) => {
+          if (event.currentTarget !== document.activeElement) onLabel(null)
+        }}
+        onFocus={() => onLabel(name)}
+        onBlur={(event) => {
+          if (!event.currentTarget.matches(':hover')) onLabel(null)
+        }}
+      >
+        <span className={styles.icon} aria-hidden="true">
+          {icon}
+        </span>
+        {running && <span className={styles.indicator} aria-hidden="true" />}
+      </button>
+      {menu.anchor && (
+        <PopupMenu
+          label={`${name} Dock actions`}
+          anchor={menu.anchor}
+          items={menu.items}
+          onClose={menu.dismiss}
+        />
+      )}
+    </>
   )
 }
